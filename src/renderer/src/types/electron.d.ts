@@ -31,6 +31,9 @@ declare global {
         mapPng: (vaultPath: string, input: unknown) => Promise<IpcResult<{ success: boolean; cancelled: boolean; filePath?: string; fileName?: string }>>;
         mapPngBatch: (vaultPath: string, input: unknown) => Promise<IpcResult<{ success: boolean; cancelled: boolean; successCount: number; failedCount: number; errors: string[]; directory?: string }>>;
       };
+      backup: {
+        createFullVaultBackup: (vaultPath: string) => Promise<IpcResult<{ success: boolean; cancelled: boolean; result?: unknown }>>;
+      };
       assets: {
         importImage: (vaultPath: string) => Promise<IpcResult<{ asset: unknown | null; cancelled?: boolean }>>;
         listImages: (vaultPath: string) => Promise<IpcResult<{ assets: unknown[] }>>;

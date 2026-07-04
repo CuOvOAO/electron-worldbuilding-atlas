@@ -10,8 +10,10 @@
     "package": "npm run build && electron-builder --dir"
   },
   "dependencies": {
+    "@types/archiver": "^8.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@xyflow/react": "^12.11.0",
+    "archiver": "^8.0.0",
     "d3-force": "^3.0.0",
     "electron-vite": "^4.0.0",
     "react": "^19.0.0",

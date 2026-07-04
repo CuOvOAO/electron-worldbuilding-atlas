@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Section } from '../components/Section';
+import { backupClient } from '../services/backupClient';
 import { dataClient } from '../services/dataClient';
 import { exportClient, type ExportOptions, type ExportSummary, type ExportSummaryItem } from '../services/exportClient';
 import { renderSavedMapPng, type MapPngSource } from '../services/mapPngRenderer';
@@ -51,6 +52,9 @@ export function ExportPage({ vault }: ExportPageProps): JSX.Element {
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [backupExporting, setBackupExporting] = useState(false);
+  const [backupMessage, setBackupMessage] = useState('');
+  const [backupError, setBackupError] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -213,9 +217,49 @@ export function ExportPage({ vault }: ExportPageProps): JSX.Element {
     }
   }
 
+  async function exportFullBackup(): Promise<void> {
+    if (backupExporting) return;
+    setBackupMessage('');
+    setBackupError('');
+    setBackupExporting(true);
+    try {
+      const result = await backupClient.createFullVaultBackup(vault.path);
+      if (result.cancelled) {
+        setBackupMessage('已取消完整备份包导出。');
+        return;
+      }
+      if (!result.result) {
+        throw new Error('备份完成但未返回结果。');
+      }
+      setBackupMessage(
+        `完整备份包导出成功：${result.result.fileName}；保存路径：${result.result.filePath}；文件大小：${formatBytes(result.result.size)}；打包素材数量：${result.result.assetCount}`
+      );
+    } catch (caught) {
+      console.error('完整备份包导出失败', caught);
+      setBackupError(caught instanceof Error ? caught.message : '完整备份包导出失败，请稍后再试。');
+    } finally {
+      setBackupExporting(false);
+    }
+  }
+
   return (
     <Section title="导出资料">
       <div className="mx-auto max-w-5xl space-y-5">
+        <div className="paper-panel space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-olive">完整备份</p>
+              <h3 className="mt-1 font-serif text-xl font-semibold text-ink">导出完整备份包</h3>
+              <p className="mt-1 text-sm text-sepia">包含当前存档数据库、项目资料和全部素材；不包含已有导出文件与旧备份。</p>
+            </div>
+            <button className="btn-primary" type="button" disabled={backupExporting} onClick={() => void exportFullBackup()}>
+              {backupExporting ? '正在导出备份...' : '导出完整备份包'}
+            </button>
+          </div>
+          {backupMessage ? <div className="rounded-md border border-olive/35 bg-batter/60 px-4 py-3 text-sm text-ink">{backupMessage}</div> : null}
+          {backupError ? <div className="rounded-md border border-spiced/35 bg-[#f0d2bd] px-4 py-3 text-sm text-spiced">{backupError}</div> : null}
+        </div>
+
         <div className="paper-panel space-y-5">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-olive">导出格式</p>
@@ -426,4 +470,16 @@ function itemLabel(moduleKey: ModuleKey, item: ExportSummaryItem): string {
     return `${item.title}｜${item.manuscriptTypeLabel || item.manuscriptType || '手稿'}`;
   }
   return item.title;
+}
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }

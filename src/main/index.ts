@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { registerAssetProtocolHandler, registerAssetProtocolScheme } from './assets/assetProtocol';
 import { registerAssetIpc } from './ipc/assetIpc';
+import { registerBackupIpc } from './ipc/backupIpc';
 import { registerDataIpc } from './ipc/dataIpc';
 import { registerExportIpc } from './ipc/exportIpc';
 import { registerVaultIpc } from './ipc/vaultIpc';
@@ -36,6 +37,7 @@ app.whenReady().then(() => {
   registerDataIpc();
   registerExportIpc();
   registerAssetIpc();
+  registerBackupIpc();
   createWindow();
 
   app.on('activate', () => {
