@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>V10 Asset Preview</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-width: 1600px;
+        min-height: 960px;
+        margin: 0;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        overflow: auto;
+        background: #292724;
+        color: #3b2818;
+        font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      }
+
+      .v10-asset-preview {
+        position: relative;
+        width: 1600px;
+        height: 960px;
+        flex: 0 0 auto;
+      }
+
+      .asset {
+        position: absolute;
+        display: block;
+        max-width: none;
+      }
+
+      .sidebar-shell {
+        left: 12px;
+        top: 12px;
+        width: 232px;
+        height: 936px;
+      }
+
+      .topbar-shell {
+        left: 256px;
+        top: 12px;
+        width: 1332px;
+        height: 104px;
+      }
+
+      .workspace-shell {
+        left: 256px;
+        top: 128px;
+        width: 1332px;
+        height: 820px;
+      }
+
+      .sidebar-brand-ornament {
+        left: 29px;
+        top: 30px;
+        width: 52px;
+        height: 52px;
+      }
+
+      .sidebar-index-plate {
+        left: 26px;
+        top: 184px;
+        width: 204px;
+        height: 54px;
+      }
+
+      .sidebar-nav-asset {
+        left: 26px;
+        width: 204px;
+        height: 58px;
+      }
+
+      .sidebar-vault-plate {
+        left: 12px;
+        top: 852px;
+        width: 232px;
+        height: 96px;
+      }
+
+      .topbar-left-world {
+        left: 266px;
+        top: 12px;
+        width: 220px;
+        height: 104px;
+      }
+
+      .topbar-search-tray {
+        left: 486px;
+        top: 12px;
+        width: 530px;
+        height: 104px;
+      }
+
+      .topbar-save-return {
+        left: 1016px;
+        top: 12px;
+        width: 190px;
+        height: 104px;
+      }
+
+      .topbar-utility-box {
+        left: 1296px;
+        top: 12px;
+        width: 292px;
+        height: 104px;
+      }
+
+      .page-title-divider {
+        left: 276px;
+        top: 194px;
+        width: 942px;
+        height: 30px;
+      }
+
+      .home-directory-sheet {
+        left: 276px;
+        top: 230px;
+        width: 942px;
+        height: 698px;
+      }
+
+      .home-quick-add-ticket {
+        left: 1240px;
+        top: 230px;
+        width: 328px;
+        height: 698px;
+      }
+
+      .dom-text {
+        position: absolute;
+        z-index: 5;
+      }
+
+      .brand-copy {
+        left: 92px;
+        top: 39px;
+        width: 130px;
+      }
+
+      .brand-copy strong,
+      .brand-copy small {
+        display: block;
+      }
+
+      .brand-copy strong {
+        font-family: "STSong", "SimSun", serif;
+        font-size: 23px;
+        line-height: 1.1;
+        letter-spacing: 0.08em;
+      }
+
+      .brand-copy small {
+        margin-top: 5px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+      }
+
+      .index-copy {
+        left: 26px;
+        top: 197px;
+        width: 204px;
+        text-align: center;
+      }
+
+      .index-copy strong,
+      .index-copy small {
+        display: block;
+      }
+
+      .index-copy strong {
+        font-family: "STSong", "SimSun", serif;
+        font-size: 16px;
+        line-height: 1.1;
+        letter-spacing: 0.1em;
+      }
+
+      .index-copy small {
+        margin-top: 3px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 8px;
+        letter-spacing: 0.1em;
+      }
+
+      .nav-label {
+        left: 89px;
+        width: 116px;
+        height: 58px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .nav-label strong,
+      .nav-label small {
+        display: block;
+      }
+
+      .nav-label strong {
+        font-family: "STSong", "SimSun", serif;
+        font-size: 16px;
+        line-height: 1.05;
+      }
+
+      .nav-label small {
+        margin-top: 4px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 8px;
+        letter-spacing: 0.08em;
+      }
+
+      .nav-icon {
+        left: 46px;
+        width: 24px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 15px;
+      }
+
+      .world-dom {
+        left: 335px;
+        top: 40px;
+        width: 118px;
+      }
+
+      .world-dom small,
+      .world-dom strong {
+        display: block;
+      }
+
+      .world-dom small {
+        font-size: 8px;
+        letter-spacing: 0.08em;
+      }
+
+      .world-dom strong {
+        margin-top: 8px;
+        font-family: "STSong", "SimSun", serif;
+        font-size: 19px;
+      }
+
+      .search-dom {
+        left: 576px;
+        top: 51px;
+        width: 322px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 14px;
+      }
+
+      .page-title {
+        left: 286px;
+        top: 151px;
+      }
+
+      .page-title strong,
+      .page-title small {
+        display: block;
+      }
+
+      .page-title strong {
+        font-family: "STSong", "SimSun", serif;
+        font-size: 25px;
+        line-height: 1.05;
+        letter-spacing: 0.08em;
+      }
+
+      .page-title small {
+        margin-top: 4px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+      }
+
+      .recent-heading {
+        left: 318px;
+        top: 254px;
+        font-family: "STSong", "SimSun", serif;
+        font-size: 17px;
+        font-weight: 700;
+      }
+
+      .recent-heading small {
+        display: block;
+        margin-top: 3px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 8px;
+        font-weight: 400;
+        letter-spacing: 0.1em;
+      }
+
+      .recent-entry {
+        width: 400px;
+        height: 74px;
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) 52px;
+        align-items: center;
+        column-gap: 10px;
+      }
+
+      .recent-entry .entry-symbol {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 17px;
+        text-align: center;
+      }
+
+      .recent-entry strong,
+      .recent-entry span {
+        display: block;
+      }
+
+      .recent-entry strong {
+        font-family: "STSong", "SimSun", serif;
+        font-size: 15px;
+      }
+
+      .recent-entry .entry-detail {
+        margin-top: 4px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 10px;
+        color: #70563a;
+      }
+
+      .recent-entry time {
+        font-size: 10px;
+        color: #70563a;
+        text-align: right;
+      }
+
+      .quick-title {
+        left: 1272px;
+        top: 257px;
+      }
+
+      .quick-title strong,
+      .quick-title small {
+        display: block;
+      }
+
+      .quick-title strong {
+        font-family: "STSong", "SimSun", serif;
+        font-size: 20px;
+      }
+
+      .quick-title small {
+        margin-top: 3px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 8px;
+        letter-spacing: 0.11em;
+      }
+
+      .quick-entry {
+        left: 1283px;
+        width: 226px;
+        height: 70px;
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        align-items: center;
+        column-gap: 12px;
+      }
+
+      .quick-entry .quick-symbol {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 17px;
+        text-align: center;
+      }
+
+      .quick-entry strong,
+      .quick-entry small {
+        display: block;
+      }
+
+      .quick-entry strong {
+        font-size: 14px;
+      }
+
+      .quick-entry small {
+        margin-top: 4px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 8px;
+        letter-spacing: 0.09em;
+        color: #70563a;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="v10-asset-preview" aria-label="V10 asset composition preview">
+      <img class="asset sidebar-shell" src="/src/renderer/src/assets/v10-preview/sidebar-shell@2x.png" width="232" height="936" alt="" />
+      <img class="asset topbar-shell" src="/src/renderer/src/assets/v10-preview/topbar-shell@2x.png" width="1332" height="104" alt="" />
+      <img class="asset workspace-shell" src="/src/renderer/src/assets/v10-preview/workspace-shell@2x.png" width="1332" height="820" alt="" />
+
+      <img class="asset sidebar-brand-ornament" src="/src/renderer/src/assets/v10-preview/sidebar-brand-ornament@2x.png" width="52" height="52" alt="" />
+      <div class="dom-text brand-copy"><strong>手稿星图</strong><small>MANUSCRIPT ATLAS</small></div>
+
+      <img class="asset sidebar-index-plate" src="/src/renderer/src/assets/v10-preview/sidebar-index-plate@2x.png" width="204" height="54" alt="" />
+      <div class="dom-text index-copy"><strong>档案索引</strong><small>ARCHIVE INDEX</small></div>
+
+      <img class="asset sidebar-nav-asset" style="top: 250px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot-active@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 308px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 366px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 424px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 482px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 540px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 598px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 656px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+      <img class="asset sidebar-nav-asset" style="top: 714px" src="/src/renderer/src/assets/v10-preview/sidebar-nav-slot@2x.png" width="204" height="58" alt="" />
+
+      <div class="dom-text nav-icon" style="top: 250px"></div>
+      <div class="dom-text nav-label" style="top: 250px"><strong>首页</strong><small>HOME</small></div>
+      <div class="dom-text nav-icon" style="top: 308px">Ⅰ</div>
+      <div class="dom-text nav-label" style="top: 308px"><strong>角色</strong><small>CHARACTERS</small></div>
+      <div class="dom-text nav-icon" style="top: 366px">Ⅱ</div>
+      <div class="dom-text nav-label" style="top: 366px"><strong>词条</strong><small>CODEX</small></div>
+      <div class="dom-text nav-icon" style="top: 424px">Ⅲ</div>
+      <div class="dom-text nav-label" style="top: 424px"><strong>事件</strong><small>EVENTS</small></div>
+      <div class="dom-text nav-icon" style="top: 482px">⌖</div>
+      <div class="dom-text nav-label" style="top: 482px"><strong>地点</strong><small>LOCATIONS</small></div>
+      <div class="dom-text nav-icon" style="top: 540px">◴</div>
+      <div class="dom-text nav-label" style="top: 540px"><strong>时间线</strong><small>TIMELINE</small></div>
+      <div class="dom-text nav-icon" style="top: 598px">▤</div>
+      <div class="dom-text nav-label" style="top: 598px"><strong>手稿箱</strong><small>MANUSCRIPTS</small></div>
+      <div class="dom-text nav-icon" style="top: 656px">◇</div>
+      <div class="dom-text nav-label" style="top: 656px"><strong>地图</strong><small>MAPS</small></div>
+      <div class="dom-text nav-icon" style="top: 714px">⌘</div>
+      <div class="dom-text nav-label" style="top: 714px"><strong>关系网</strong><small>RELATIONS</small></div>
+      <img class="asset sidebar-vault-plate" src="/src/renderer/src/assets/v10-preview/sidebar-vault-plate@2x.png" width="232" height="96" alt="" />
+
+      <img class="asset topbar-left-world" src="/src/renderer/src/assets/v10-preview/topbar-left-world@2x.png" width="220" height="104" alt="" />
+      <img class="asset topbar-search-tray" src="/src/renderer/src/assets/v10-preview/topbar-search-tray@2x.png" width="530" height="104" alt="" />
+      <img class="asset topbar-save-return" src="/src/renderer/src/assets/v10-preview/topbar-save-return@2x.png" width="190" height="104" alt="" />
+      <img class="asset topbar-utility-box" src="/src/renderer/src/assets/v10-preview/topbar-utility-box@2x.png" width="292" height="104" alt="" />
+      <div class="dom-text world-dom"><small>CURRENT WORLD</small><strong>新世界观</strong></div>
+      <div class="dom-text search-dom">搜索角色、词条、事件、地点、手稿…</div>
+
+      <div class="dom-text page-title"><strong>首页</strong><small>HOME</small></div>
+      <img class="asset page-title-divider" src="/src/renderer/src/assets/v10-preview/page-title-divider@2x.png" width="942" height="30" alt="" />
+      <img class="asset home-directory-sheet" src="/src/renderer/src/assets/v10-preview/home-directory-sheet@2x.png" width="942" height="698" alt="" />
+      <img class="asset home-quick-add-ticket" src="/src/renderer/src/assets/v10-preview/home-quick-add-ticket@2x.png" width="328" height="698" alt="" />
+
+      <div class="dom-text recent-heading">最近编辑<small>RECENTLY EDITED</small></div>
+      <article class="dom-text recent-entry" style="left: 314px; top: 302px">
+        <span class="entry-symbol">♙</span><span><strong>艾琳娜·风歌</strong><span class="entry-detail">角色 · 补充白塔时期关系备注</span></span><time>10:24</time>
+      </article>
+      <article class="dom-text recent-entry" style="left: 786px; top: 302px">
+        <span class="entry-symbol">♙</span><span><strong>寒恩·灰刃</strong><span class="entry-detail">角色 · 更新旧誓约行动记录</span></span><time>08:50</time>
+      </article>
+      <article class="dom-text recent-entry" style="left: 314px; top: 418px">
+        <span class="entry-symbol">▤</span><span><strong>黑石城</strong><span class="entry-detail">词条 · 整理主城分区与旧称</span></span><time>09:53</time>
+      </article>
+      <article class="dom-text recent-entry" style="left: 786px; top: 418px">
+        <span class="entry-symbol">▣</span><span><strong>北境会谈</strong><span class="entry-detail">事件 · 补入谈判前夜线索</span></span><time>昨日</time>
+      </article>
+      <article class="dom-text recent-entry" style="left: 314px; top: 534px">
+        <span class="entry-symbol">⌖</span><span><strong>灰港</strong><span class="entry-detail">地点 · 增加港口结构简述</span></span><time>昨日</time>
+      </article>
+
+      <div class="dom-text quick-title"><strong>快速添加</strong><small>QUICK ADD</small></div>
+      <div class="dom-text quick-entry" style="top: 310px"><span class="quick-symbol">♙</span><span><strong>新建角色</strong><small>CHARACTER</small></span></div>
+      <div class="dom-text quick-entry" style="top: 400px"><span class="quick-symbol">▤</span><span><strong>新建词条</strong><small>CODEX ENTRY</small></span></div>
+      <div class="dom-text quick-entry" style="top: 490px"><span class="quick-symbol">▣</span><span><strong>新建事件</strong><small>EVENT</small></span></div>
+      <div class="dom-text quick-entry" style="top: 580px"><span class="quick-symbol">⌖</span><span><strong>新建地点</strong><small>LOCATION</small></span></div>
+      <div class="dom-text quick-entry" style="top: 670px"><span class="quick-symbol">◇</span><span><strong>新建地图</strong><small>ATLAS</small></span></div>
+      <div class="dom-text quick-entry" style="top: 760px"><span class="quick-symbol">≡</span><span><strong>新建手稿</strong><small>MANUSCRIPT</small></span></div>
+    </main>
+  </body>
+</html>

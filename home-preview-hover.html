@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manuscript Atlas Home Hover Preview</title>
+    <link rel="stylesheet" href="file:///C:/Users/CuO/Desktop/%E6%89%8B%E7%A8%BF%E6%98%9F%E5%9B%BE%202/out/renderer/assets/index-BWTgPR6I.css" />
+    <style>
+      .preview-shell {
+        width: 1600px;
+        min-height: 960px;
+      }
+
+      .preview-main {
+        padding: 16px 20px 24px;
+      }
+
+      .preview-focus {
+        max-width: 760px;
+      }
+
+      .ma-recent-item.is-preview-hover {
+        transform: translateY(-1px);
+        border-color: rgba(154, 116, 74, 0.62);
+        background:
+          linear-gradient(180deg, rgba(245, 231, 196, 0.14), rgba(245, 231, 196, 0)),
+          rgba(246, 235, 208, 0.94);
+        box-shadow: var(--ma-shadow-sm);
+      }
+
+      .ma-recent-item.is-preview-hover::before {
+        opacity: 0.17;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ma-app-shell preview-shell min-h-screen bg-parchment text-ink">
+      <header class="relative z-30 flex h-[5.4rem] items-center justify-between border-b border-umber/30 bg-[rgba(241,225,189,0.88)] px-6 shadow-[0_1px_0_rgba(255,248,232,0.45)] backdrop-blur">
+        <div class="flex items-center gap-4">
+          <div class="grid h-11 w-11 place-items-center rounded-full border border-copper/45 bg-vellum shadow-inner">
+            <svg viewBox="0 0 42 42" class="h-8 w-8 text-copper" aria-hidden="true">
+              <circle cx="21" cy="21" r="15" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+              <path d="M8 24c7-7 17-7 26 0M13 12c5 9 11 14 19 17M21 6v30" fill="none" stroke="currentColor" stroke-width="1.4"></path>
+              <circle cx="21" cy="21" r="2.5" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <div class="ma-title-block">
+            <p class="ma-eyebrow">Current Vault</p>
+            <h1 class="ma-title-main">北境旧卷</h1>
+          </div>
+        </div>
+      </header>
+
+      <main class="preview-main">
+        <div class="preview-focus">
+          <section class="paper-panel ma-home-recent">
+            <div class="ma-section-header mb-4 flex items-start justify-between gap-4 border-b border-sepia/20 bg-[rgba(247,238,220,0.9)] pb-3">
+              <div class="ma-title-block">
+                <h2 class="ma-section-title">最近编辑<span class="ma-title-slash">/</span><span class="ma-title-en">Recently Edited</span></h2>
+                <div class="ma-section-decoration">
+                  <img class="ma-divider-book" src="file:///C:/Users/CuO/Desktop/%E6%89%8B%E7%A8%BF%E6%98%9F%E5%9B%BE%202/src/renderer/src/assets/ui/manuscript-atlas/divider-book-cropped.png" alt="" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <div class="ma-recent-grid" style="grid-template-columns: minmax(0, 1fr);">
+              <button class="ma-recent-item is-preview-hover" title="艾琳在白塔城时期的正史版本">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">艾琳在白塔城时期的正史版本</span>
+                  <span class="ma-recent-summary line-clamp-2">更新了正史线版本的心理侧写，并补充了白塔城时期的关系备注与一段新的自述。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 18:42</span><span class="ma-recent-kind">角色</span></div>
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

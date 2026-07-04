@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>V10 Study Cabinet Preview</title>
+    <style>
+      :root {
+        --wood-deep: #62401d;
+        --wood: #8a5b2c;
+        --wood-light: #ad7840;
+        --brass: #a97835;
+        --brass-light: #d2aa65;
+        --paper: #ead2a3;
+        --paper-light: #f3e1bb;
+        --paper-deep: #d9b979;
+        --ink: #3b2a19;
+        --muted: #725a3d;
+        --olive: #68704e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        color: var(--ink);
+        background: #583919;
+        font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+      }
+
+      svg {
+        display: block;
+      }
+
+      .preview {
+        width: 1600px;
+        height: 960px;
+        display: grid;
+        grid-template-columns: 226px minmax(0, 1fr);
+        grid-template-rows: 104px minmax(0, 1fr);
+        overflow: hidden;
+        border: 5px solid var(--wood-deep);
+        background:
+          repeating-linear-gradient(2deg, rgba(65, 37, 12, 0.12) 0 1px, transparent 1px 7px),
+          linear-gradient(90deg, #805126, #a36d37 48%, #7b4c21);
+        box-shadow:
+          inset 0 0 0 2px #c38d49,
+          inset 0 0 0 5px #543313;
+      }
+
+      .brand,
+      .topbar,
+      .sidebar,
+      .workspace {
+        position: relative;
+      }
+
+      .brand::after,
+      .topbar::after,
+      .sidebar::after,
+      .workspace::after {
+        content: "";
+        position: absolute;
+        inset: 7px;
+        border: 1px solid rgba(239, 198, 125, 0.25);
+        pointer-events: none;
+      }
+
+      .brand {
+        grid-column: 1;
+        grid-row: 1;
+        display: grid;
+        grid-template-columns: 73px 1fr;
+        align-items: center;
+        padding: 12px 15px 10px 17px;
+        border-right: 5px solid var(--wood-deep);
+        border-bottom: 5px solid var(--wood-deep);
+        background:
+          linear-gradient(90deg, rgba(255, 228, 173, 0.17), transparent 28%, rgba(64, 35, 11, 0.12)),
+          linear-gradient(#b37b3c, #925d2b);
+        box-shadow:
+          inset 0 0 0 2px rgba(229, 183, 105, 0.48),
+          inset 0 0 0 5px rgba(82, 45, 15, 0.25);
+      }
+
+      .brand-mark {
+        width: 62px;
+        height: 62px;
+        color: #4e3116;
+        opacity: 0.9;
+      }
+
+      .brand h1,
+      .brand p {
+        margin: 0;
+      }
+
+      .brand h1 {
+        font: 700 23px/1.1 "STSong", "SimSun", serif;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+
+      .brand p {
+        margin-top: 6px;
+        font: 11px Georgia, serif;
+        letter-spacing: 0.09em;
+      }
+
+      .topbar {
+        grid-column: 2;
+        grid-row: 1;
+        display: grid;
+        grid-template-columns: 220px minmax(390px, 1fr) 175px 154px 244px;
+        border-bottom: 5px solid var(--wood-deep);
+        background:
+          linear-gradient(rgba(247, 228, 188, 0.72), rgba(218, 181, 119, 0.56)),
+          repeating-linear-gradient(3deg, rgba(91, 57, 21, 0.04) 0 1px, transparent 1px 5px),
+          #dfbd83;
+        box-shadow:
+          inset 0 0 0 2px rgba(132, 84, 31, 0.43),
+          inset 0 -3px 0 rgba(255, 237, 198, 0.35);
+      }
+
+      .tool-cell {
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        padding: 15px 18px;
+        border-right: 1px solid rgba(101, 63, 23, 0.36);
+        box-shadow: inset -2px 0 rgba(255, 238, 200, 0.2);
+      }
+
+      .tool-cell:last-child {
+        border-right: 0;
+      }
+
+      .eyebrow {
+        margin: 0;
+        font: 10px Georgia, serif;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .world {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .world-name {
+        margin: 6px 0 0;
+        font: 700 19px "STSong", "SimSun", serif;
+      }
+
+      .search-slot {
+        width: 100%;
+        height: 48px;
+        display: grid;
+        grid-template-columns: 25px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border: 1px solid rgba(108, 68, 26, 0.44);
+        background: rgba(247, 230, 196, 0.54);
+        box-shadow:
+          inset 0 2px 4px rgba(74, 43, 14, 0.09),
+          0 1px rgba(255, 245, 218, 0.62);
+      }
+
+      .search-slot span {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 14px;
+        color: #6d5538;
+      }
+
+      .search-slot kbd {
+        padding: 3px 7px;
+        border: 1px solid rgba(106, 65, 23, 0.28);
+        background: rgba(222, 190, 135, 0.42);
+        font: 10px inherit;
+        color: #675033;
+      }
+
+      .save-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 5px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .save-note {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: var(--olive);
+      }
+
+      .return-vault {
+        width: 100%;
+        height: 54px;
+        border: 2px solid #996a31;
+        outline: 1px solid rgba(246, 222, 177, 0.64);
+        outline-offset: -5px;
+        background: linear-gradient(#e9c98e, #cfa45c);
+        color: var(--ink);
+        font: 700 14px inherit;
+        box-shadow:
+          inset 0 1px rgba(255, 240, 205, 0.65),
+          2px 2px 0 rgba(84, 49, 15, 0.16);
+      }
+
+      .utility-box {
+        width: 100%;
+        height: 72px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border: 2px solid rgba(102, 62, 21, 0.44);
+        background: rgba(237, 208, 156, 0.42);
+        box-shadow:
+          inset 0 0 0 3px rgba(255, 239, 203, 0.24),
+          inset 0 3px 5px rgba(72, 42, 13, 0.08);
+      }
+
+      .utility-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        border-left: 1px solid rgba(105, 65, 24, 0.38);
+      }
+
+      .utility-item:first-child {
+        border-left: 0;
+      }
+
+      .utility-item strong {
+        font-size: 13px;
+      }
+
+      .utility-item small {
+        font: 8px Georgia, serif;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+
+      .icon {
+        width: 22px;
+        height: 22px;
+      }
+
+      .sidebar {
+        grid-column: 1;
+        grid-row: 2;
+        min-height: 0;
+        padding: 16px 13px 15px;
+        border-right: 5px solid var(--wood-deep);
+        background:
+          repeating-linear-gradient(1deg, rgba(53, 29, 9, 0.11) 0 1px, transparent 1px 7px),
+          linear-gradient(90deg, #8d5b2b, #a97237 51%, #7d4e22);
+        box-shadow:
+          inset 0 0 0 2px rgba(212, 156, 75, 0.46),
+          inset -7px 0 12px rgba(56, 30, 9, 0.16);
+      }
+
+      .index-plaque {
+        position: relative;
+        z-index: 1;
+        margin: 0 9px 14px;
+        padding: 12px 10px 10px;
+        border: 2px solid #794c20;
+        background: linear-gradient(#e5c285, #cda15c);
+        text-align: center;
+        box-shadow:
+          inset 0 0 0 3px rgba(247, 224, 181, 0.42),
+          2px 3px 0 rgba(64, 35, 10, 0.18);
+      }
+
+      .index-plaque strong {
+        display: block;
+        font: 700 17px "STSong", "SimSun", serif;
+        letter-spacing: 0.1em;
+      }
+
+      .index-plaque small {
+        display: block;
+        margin-top: 3px;
+        font: 9px Georgia, serif;
+        letter-spacing: 0.1em;
+      }
+
+      .index-list {
+        position: relative;
+        z-index: 1;
+        margin: 0 4px;
+        border-top: 2px solid rgba(72, 40, 12, 0.55);
+        border-bottom: 2px solid rgba(225, 173, 95, 0.35);
+      }
+
+      .index-item {
+        position: relative;
+        height: 66px;
+        display: grid;
+        grid-template-columns: 49px minmax(0, 1fr) 9px;
+        align-items: center;
+        border-bottom: 1px solid rgba(72, 40, 12, 0.45);
+        background:
+          linear-gradient(90deg, rgba(246, 216, 157, 0.26), transparent 34%, rgba(62, 34, 9, 0.07)),
+          rgba(195, 141, 70, 0.28);
+        color: #f3ddb1;
+        box-shadow:
+          inset 0 1px rgba(245, 211, 151, 0.24),
+          inset 0 -2px rgba(74, 39, 10, 0.12);
+      }
+
+      .index-item.selected {
+        margin: 0 -5px;
+        padding: 0 5px;
+        border: 2px solid #724619;
+        background: linear-gradient(90deg, #efd39e, #d6aa64);
+        color: var(--ink);
+        box-shadow:
+          inset 0 0 0 3px rgba(255, 239, 203, 0.35),
+          3px 3px 0 rgba(61, 33, 9, 0.18);
+      }
+
+      .index-number {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        border-right: 1px solid currentColor;
+        opacity: 0.8;
+      }
+
+      .index-copy strong,
+      .index-copy small {
+        display: block;
+      }
+
+      .index-copy strong {
+        font: 700 17px "STSong", "SimSun", serif;
+      }
+
+      .index-copy small {
+        margin-top: 3px;
+        font: 9px Georgia, serif;
+        letter-spacing: 0.1em;
+        opacity: 0.82;
+      }
+
+      .index-latch {
+        width: 7px;
+        height: 25px;
+        border: 1px solid rgba(69, 38, 11, 0.64);
+        border-right: 0;
+        background: linear-gradient(#d4a85e, #95652b);
+      }
+
+      .cabinet-id {
+        position: absolute;
+        z-index: 1;
+        left: 31px;
+        right: 31px;
+        bottom: 23px;
+        padding: 10px 8px;
+        border: 2px solid #593915;
+        outline: 1px solid #d5a65a;
+        outline-offset: -5px;
+        background: linear-gradient(#c59349, #92602a);
+        text-align: center;
+        font: 700 15px "STSong", "SimSun", serif;
+      }
+
+      .cabinet-id::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: calc(100% + 3px);
+        width: 58px;
+        height: 15px;
+        transform: translateX(-50%);
+        border: 3px solid #553513;
+        border-top: 0;
+        border-radius: 0 0 18px 18px;
+        box-shadow: inset 0 0 0 2px #bb863e;
+      }
+
+      .workspace {
+        grid-column: 2;
+        grid-row: 2;
+        min-width: 0;
+        min-height: 0;
+        padding: 10px;
+        background:
+          repeating-linear-gradient(0deg, rgba(56, 30, 9, 0.12) 0 1px, transparent 1px 8px),
+          linear-gradient(135deg, #855529, #a36d36 44%, #77481f);
+        box-shadow: inset 0 0 0 2px rgba(219, 166, 88, 0.42);
+      }
+
+      .home-workface {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border: 2px solid #69421c;
+        border-radius: 3px;
+        background-color: var(--paper);
+        background-image:
+          radial-gradient(circle at 15% 22%, rgba(102, 64, 24, 0.07) 0 0.8px, transparent 1px),
+          radial-gradient(circle at 78% 72%, rgba(255, 248, 223, 0.34) 0 0.8px, transparent 1px),
+          repeating-linear-gradient(6deg, rgba(88, 54, 18, 0.026) 0 1px, transparent 1px 5px);
+        background-size: 8px 8px, 10px 10px, auto;
+        box-shadow:
+          inset 0 0 0 3px rgba(238, 205, 146, 0.72),
+          inset 0 0 0 6px rgba(98, 60, 22, 0.16);
+      }
+
+      .home-workface::after {
+        content: "";
+        position: absolute;
+        inset: 12px;
+        border: 1px solid rgba(119, 75, 30, 0.18);
+        pointer-events: none;
+      }
+
+      .home-heading {
+        position: relative;
+        z-index: 2;
+        height: 78px;
+        padding: 18px 26px 11px;
+        border-bottom: 1px solid rgba(105, 65, 24, 0.28);
+      }
+
+      .home-heading h2,
+      .home-heading p {
+        margin: 0;
+      }
+
+      .home-heading h2 {
+        font: 700 25px/1.1 "STSong", "SimSun", serif;
+        letter-spacing: 0.06em;
+      }
+
+      .home-heading p {
+        margin-top: 5px;
+        font: 10px Georgia, serif;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .home-body {
+        position: relative;
+        z-index: 1;
+        height: calc(100% - 78px);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 25px;
+        padding: 22px 27px 28px;
+      }
+
+      .ledger {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 48px minmax(0, 1fr);
+        border: 1px solid rgba(104, 64, 23, 0.28);
+        background: rgba(248, 230, 193, 0.25);
+      }
+
+      .ledger-heading {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        padding: 9px 14px 8px;
+        border-bottom: 1px solid rgba(104, 64, 23, 0.25);
+      }
+
+      .ledger-heading strong {
+        font: 700 17px "STSong", "SimSun", serif;
+      }
+
+      .ledger-heading small {
+        font: 9px Georgia, serif;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .recent-grid {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .recent-column {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: repeat(5, 1fr);
+        border-left: 1px solid rgba(104, 64, 23, 0.22);
+      }
+
+      .recent-column:first-child {
+        border-left: 0;
+      }
+
+      .recent-item {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) 48px 16px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 13px;
+        border-bottom: 1px solid rgba(104, 64, 23, 0.18);
+      }
+
+      .recent-item:last-child {
+        border-bottom: 0;
+      }
+
+      .recent-copy {
+        min-width: 0;
+      }
+
+      .recent-copy strong,
+      .recent-copy span {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .recent-copy strong {
+        font: 700 16px "STSong", "SimSun", serif;
+      }
+
+      .recent-copy span {
+        margin-top: 5px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .recent-time {
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .quick-ticket {
+        position: relative;
+        align-self: start;
+        min-height: 622px;
+        padding: 22px 20px 55px;
+        border: 1px solid #93652e;
+        background:
+          linear-gradient(rgba(249, 233, 198, 0.94), rgba(231, 202, 149, 0.88)),
+          var(--paper-light);
+        box-shadow: 4px 5px 0 rgba(81, 47, 14, 0.14);
+      }
+
+      .quick-ticket::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border: 1px dashed rgba(101, 62, 22, 0.34);
+        pointer-events: none;
+      }
+
+      .quick-ticket::after {
+        content: "";
+        position: absolute;
+        top: -15px;
+        right: 27px;
+        width: 18px;
+        height: 66px;
+        border: 4px solid #9b7038;
+        border-radius: 13px;
+        opacity: 0.86;
+      }
+
+      .ticket-title {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        padding-bottom: 14px;
+        border-bottom: 1px dashed rgba(101, 62, 22, 0.38);
+      }
+
+      .ticket-title h3,
+      .ticket-title p {
+        margin: 0;
+      }
+
+      .ticket-title h3 {
+        font: 700 20px "STSong", "SimSun", serif;
+      }
+
+      .ticket-title p {
+        margin-top: 3px;
+        font: 9px Georgia, serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .ticket-title span {
+        font: 9px Georgia, serif;
+        color: #8a4937;
+      }
+
+      .ticket-list {
+        position: relative;
+        z-index: 1;
+        margin-top: 8px;
+      }
+
+      .ticket-item {
+        height: 72px;
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        border-bottom: 1px dotted rgba(101, 62, 22, 0.3);
+      }
+
+      .ticket-item strong,
+      .ticket-item small {
+        display: block;
+      }
+
+      .ticket-item strong {
+        font-size: 14px;
+      }
+
+      .ticket-item small {
+        margin-top: 4px;
+        font: 8px Georgia, serif;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+
+      .barcode {
+        position: absolute;
+        left: 20px;
+        right: 20px;
+        bottom: 22px;
+        height: 20px;
+        background: repeating-linear-gradient(
+          90deg,
+          #49311c 0 1px,
+          transparent 1px 3px,
+          #49311c 3px 6px,
+          transparent 6px 8px
+        );
+        opacity: 0.68;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview" aria-label="V10 virtual study cabinet homepage preview">
+      <header class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" fill="none" stroke="currentColor">
+          <circle cx="32" cy="32" r="21" stroke-width="1.5" />
+          <circle cx="32" cy="32" r="14" stroke-width="1" stroke-dasharray="2 3" />
+          <path d="M32 5v54M5 32h54M14 14l36 36M50 14 14 50" stroke-width="1" />
+          <path d="m32 11 5.5 15.5L53 32l-15.5 5.5L32 53l-5.5-15.5L11 32l15.5-5.5Z" stroke-width="1.8" />
+          <circle cx="32" cy="32" r="3" fill="currentColor" stroke="none" />
+        </svg>
+        <div><h1>手稿星图</h1><p>MANUSCRIPT ATLAS</p></div>
+      </header>
+
+      <header class="topbar">
+        <section class="tool-cell">
+          <div class="world"><div><p class="eyebrow">当前位置 / Current World</p><p class="world-name">新世界观</p></div><span>⌄</span></div>
+        </section>
+        <section class="tool-cell">
+          <div class="search-slot">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></svg>
+            <span>搜索角色、词条、事件、地点、手稿…</span><kbd>Ctrl + K</kbd>
+          </div>
+        </section>
+        <section class="tool-cell">
+          <div><p class="eyebrow">保存状态</p><div class="save-line"><span>本地已保存</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#68734c" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></div><p class="save-note">最近保存：10:24</p></div>
+        </section>
+        <section class="tool-cell"><button class="return-vault">返回存档　▣</button></section>
+        <section class="tool-cell">
+          <div class="utility-box">
+            <div class="utility-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 5h10v14H5zM15 9h4v10h-4M9 9h4M9 13h4"/></svg><strong>导出</strong><small>EXPORT</small></div>
+            <div class="utility-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><path d="m12 3 1 2.2 2.4.5 1.8-1.5 1.6 1.6-1.5 1.8.5 2.4L20 12l-2.2 1-.5 2.4 1.5 1.8-1.6 1.6-1.8-1.5-2.4.5L12 20l-1-2.2-2.4-.5-1.8 1.5-1.6-1.6 1.5-1.8-.5-2.4L4 12l2.2-1 .5-2.4-1.5-1.8 1.6-1.6 1.8 1.5 2.4-.5Z"/></svg><strong>设置</strong><small>SETTINGS</small></div>
+            <div class="utility-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 7h10l-1 12H8zM5 7h14M9 7V4h6v3M10 10v6M14 10v6"/></svg><strong>回收站</strong><small>BIN</small></div>
+          </div>
+        </section>
+      </header>
+
+      <aside class="sidebar">
+        <div class="index-plaque"><strong>档案索引</strong><small>ARCHIVAL INDEX</small></div>
+        <nav class="index-list" aria-label="静态模块索引">
+          <div class="index-item selected"><span class="index-number">⌂</span><span class="index-copy"><strong>首页</strong><small>HOME</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">Ⅰ</span><span class="index-copy"><strong>角色</strong><small>CHARACTERS</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">Ⅱ</span><span class="index-copy"><strong>词条</strong><small>CODEX</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">Ⅲ</span><span class="index-copy"><strong>事件</strong><small>EVENTS</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">⌖</span><span class="index-copy"><strong>地点</strong><small>LOCATIONS</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">◴</span><span class="index-copy"><strong>时间线</strong><small>TIMELINE</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">▤</span><span class="index-copy"><strong>手稿箱</strong><small>MANUSCRIPTS</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">◇</span><span class="index-copy"><strong>地图</strong><small>MAPS</small></span><i class="index-latch"></i></div>
+          <div class="index-item"><span class="index-number">⌘</span><span class="index-copy"><strong>关系网</strong><small>RELATIONS</small></span><i class="index-latch"></i></div>
+        </nav>
+        <div class="cabinet-id">档案柜 A-17</div>
+      </aside>
+
+      <section class="workspace">
+        <section class="home-workface">
+          <header class="home-heading"><h2>首页 · 最近编辑</h2><p>Home · Recently Edited</p></header>
+          <div class="home-body">
+            <section class="ledger">
+              <header class="ledger-heading"><strong>最近翻阅档案</strong><small>Recently Used Records</small></header>
+              <div class="recent-grid">
+                <div class="recent-column">
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3"/><path d="M6 19c1-3 3-5 6-5s5 2 6 5"/></svg><span class="recent-copy"><strong>艾琳娜·风歌</strong><span>角色 · 补充白塔时期关系备注</span></span><span class="recent-time">10:24</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="4" width="14" height="16"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span class="recent-copy"><strong>黑石城</strong><span>词条 · 整理主城分区与旧称</span></span><span class="recent-time">09:53</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6h14v13H5zM8 3v5M16 3v5M5 10h14"/></svg><span class="recent-copy"><strong>北境会谈</strong><span>事件 · 补入谈判前夜线索</span></span><span class="recent-time">昨日</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21s6-5 6-11a6 6 0 0 0-12 0c0 6 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></svg><span class="recent-copy"><strong>灰港</strong><span>地点 · 增加港口结构简述</span></span><span class="recent-time">昨日</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 4h10v16H7zM10 8h4M10 12h4M10 16h3"/></svg><span class="recent-copy"><strong>潮汐手记</strong><span>手稿 · 重排第三节叙事顺序</span></span><span class="recent-time">前天</span><b>⋯</b></div>
+                </div>
+                <div class="recent-column">
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3"/><path d="M6 19c1-3 3-5 6-5s5 2 6 5"/></svg><span class="recent-copy"><strong>寒恩·灰刃</strong><span>角色 · 更新旧誓约行动记录</span></span><span class="recent-time">08:50</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="4" width="14" height="16"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span class="recent-copy"><strong>旧日盟约</strong><span>词条 · 补全失效条件与来源注</span></span><span class="recent-time">昨日</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 4h10v16H7zM10 8h4M10 12h4M10 16h3"/></svg><span class="recent-copy"><strong>雪夜初遇</strong><span>手稿 · 更新章节摘录</span></span><span class="recent-time">昨日</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m4 7 5-3 6 3 5-3v13l-5 3-6-3-5 3Z M9 4v13M15 7v13"/></svg><span class="recent-copy"><strong>北境边境地带</strong><span>地图 · 微调对象与图例顺序</span></span><span class="recent-time">前天</span><b>⋯</b></div>
+                  <div class="recent-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6h14v13H5zM8 3v5M16 3v5M5 10h14"/></svg><span class="recent-copy"><strong>暮港失火</strong><span>事件 · 补入目击者时间记录</span></span><span class="recent-time">前天</span><b>⋯</b></div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="quick-ticket">
+              <div class="ticket-title"><div><h3>快速添加</h3><p>Quick Add</p></div><span>No. 008731</span></div>
+              <div class="ticket-list">
+                <div class="ticket-item"><span>♙</span><span><strong>新建角色</strong><small>CHARACTER</small></span></div>
+                <div class="ticket-item"><span>▤</span><span><strong>新建词条</strong><small>CODEX ENTRY</small></span></div>
+                <div class="ticket-item"><span>▣</span><span><strong>新建事件</strong><small>EVENT</small></span></div>
+                <div class="ticket-item"><span>⌖</span><span><strong>新建地点</strong><small>LOCATION</small></span></div>
+                <div class="ticket-item"><span>◇</span><span><strong>新建地图</strong><small>ATLAS</small></span></div>
+                <div class="ticket-item"><span>≡</span><span><strong>新建手稿</strong><small>MANUSCRIPT</small></span></div>
+              </div>
+              <div class="barcode"></div>
+            </aside>
+          </div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

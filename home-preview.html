@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manuscript Atlas Home Preview</title>
+    <link rel="stylesheet" href="file:///C:/Users/CuO/Desktop/%E6%89%8B%E7%A8%BF%E6%98%9F%E5%9B%BE%202/out/renderer/assets/index-BWTgPR6I.css" />
+    <style>
+      .preview-shell {
+        width: 1600px;
+        min-height: 960px;
+      }
+
+      .preview-main {
+        padding: 16px 20px 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ma-app-shell preview-shell min-h-screen bg-parchment text-ink">
+      <header class="relative z-30 flex h-[5.4rem] items-center justify-between border-b border-umber/30 bg-[rgba(241,225,189,0.88)] px-6 shadow-[0_1px_0_rgba(255,248,232,0.45)] backdrop-blur">
+        <div class="flex items-center gap-4">
+          <div class="grid h-11 w-11 place-items-center rounded-full border border-copper/45 bg-vellum shadow-inner">
+            <svg viewBox="0 0 42 42" class="h-8 w-8 text-copper" aria-hidden="true">
+              <circle cx="21" cy="21" r="15" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+              <path d="M8 24c7-7 17-7 26 0M13 12c5 9 11 14 19 17M21 6v30" fill="none" stroke="currentColor" stroke-width="1.4"></path>
+              <circle cx="21" cy="21" r="2.5" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <div class="ma-title-block">
+            <p class="ma-eyebrow">Current Vault</p>
+            <h1 class="ma-title-main">北境旧卷</h1>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="flex w-80 items-center gap-2 rounded-md border border-umber/40 bg-[rgba(247,238,220,0.96)] px-3 py-2.5 text-[0.9375rem] shadow-[inset_0_1px_0_rgba(255,248,232,0.45)]">
+            <span class="text-copper" aria-hidden="true">⌕</span>
+            <input class="w-full bg-transparent outline-none placeholder:text-sepia/75" placeholder="搜索角色、词条、事件、地点..." />
+          </label>
+          <button class="btn-ghost">返回存档</button>
+        </div>
+      </header>
+
+      <main class="preview-main">
+        <div class="ma-home-grid grid gap-5">
+          <section class="paper-panel ma-home-recent">
+            <div class="ma-section-header mb-4 flex items-start justify-between gap-4 border-b border-sepia/20 bg-[rgba(247,238,220,0.9)] pb-3">
+              <div class="ma-title-block">
+                <h2 class="ma-section-title">最近编辑<span class="ma-title-slash">/</span><span class="ma-title-en">Recently Edited</span></h2>
+                <div class="ma-section-decoration">
+                  <img class="ma-divider-book" src="file:///C:/Users/CuO/Desktop/%E6%89%8B%E7%A8%BF%E6%98%9F%E5%9B%BE%202/src/renderer/src/assets/ui/manuscript-atlas/divider-book-cropped.png" alt="" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <div class="ma-recent-grid">
+              <button class="ma-recent-item" title="艾琳在白塔城时期的正史版本">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">艾琳在白塔城时期的正史版本</span>
+                  <span class="ma-recent-summary line-clamp-2">更新了正史线版本的心理侧写，并补充了白塔城时期的关系备注与一段新的自述。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 18:42</span><span class="ma-recent-kind">角色</span></div>
+              </button>
+              <button class="ma-recent-item" title="旧王族">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">旧王族</span>
+                  <span class="ma-recent-summary line-clamp-2">补完血脉继承段落，统一了旁支与正支的称呼方式，并调整了相关别名。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 17:08</span><span class="ma-recent-kind">词条</span></div>
+              </button>
+              <button class="ma-recent-item" title="北境战争">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">北境战争</span>
+                  <span class="ma-recent-summary line-clamp-2">调整开始时间文本，并给时间线补了一条战前导火索，方便后续排序。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 15:30</span><span class="ma-recent-kind">事件</span></div>
+              </button>
+              <button class="ma-recent-item" title="白塔城">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">白塔城</span>
+                  <span class="ma-recent-summary line-clamp-2">新增相关事件占位，准备后续与地图对象的说明文字联动，并补一张城内分区草图。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 14:12</span><span class="ma-recent-kind">地点</span></div>
+              </button>
+              <button class="ma-recent-item" title="雪夜初遇">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">雪夜初遇</span>
+                  <span class="ma-recent-summary line-clamp-2">标记为可导出手稿，并整理了章节前的摘要说明，便于后续集中导出。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 11:54</span><span class="ma-recent-kind">手稿</span></div>
+              </button>
+              <button class="ma-recent-item" title="北境年表">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">北境年表</span>
+                  <span class="ma-recent-summary line-clamp-2">为角色主线和国家史补了两段锚点说明，让跨页跳转后更容易回看。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/21 10:21</span><span class="ma-recent-kind">时间线</span></div>
+              </button>
+              <button class="ma-recent-item" title="艾琳 / 白塔城修订版">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">艾琳 / 白塔城修订版</span>
+                  <span class="ma-recent-summary line-clamp-2">补了一段童年背景和旧日口癖，方便后续和主版本区分。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/20 21:42</span><span class="ma-recent-kind">角色版本</span></div>
+              </button>
+              <button class="ma-recent-item" title="白塔誓约">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">白塔誓约</span>
+                  <span class="ma-recent-summary line-clamp-2">整理了誓词来源与失效条件，减少后续冲突设定。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/20 19:03</span><span class="ma-recent-kind">词条</span></div>
+              </button>
+              <button class="ma-recent-item" title="灰港">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">灰港</span>
+                  <span class="ma-recent-summary line-clamp-2">补了港口结构说明和几条与商路有关的备注。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/20 16:11</span><span class="ma-recent-kind">地点</span></div>
+              </button>
+              <button class="ma-recent-item" title="白塔失火">
+                <div class="ma-recent-body">
+                  <span class="ma-recent-title line-clamp-2">白塔失火</span>
+                  <span class="ma-recent-summary line-clamp-2">给起火经过补了两个旁证，并整理成可交叉引用的事件摘要。</span>
+                </div>
+                <div class="ma-recent-footer"><span class="ma-recent-date">2026/06/20 09:45</span><span class="ma-recent-kind">事件</span></div>
+              </button>
+            </div>
+          </section>
+
+          <section class="paper-panel ma-home-side">
+            <div class="ma-section-header mb-4 flex items-start justify-between gap-4 border-b border-sepia/20 bg-[rgba(247,238,220,0.9)] pb-3">
+              <div class="ma-title-block">
+                <h2 class="ma-section-title">快速添加<span class="ma-title-slash">/</span><span class="ma-title-en">Quick Add</span></h2>
+                <div class="ma-section-decoration">
+                  <img class="ma-divider-celestial" src="file:///C:/Users/CuO/Desktop/%E6%89%8B%E7%A8%BF%E6%98%9F%E5%9B%BE%202/src/renderer/src/assets/ui/manuscript-atlas/divider-celestial-cropped.png" alt="" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <div class="ma-quick-list">
+              <button class="ma-quick-entry"><span class="ma-quick-plus">+</span><span class="ma-quick-copy"><span class="ma-quick-title">新建角色</span><span class="ma-quick-subtitle">Character</span></span></button>
+              <button class="ma-quick-entry"><span class="ma-quick-plus">+</span><span class="ma-quick-copy"><span class="ma-quick-title">新建词条</span><span class="ma-quick-subtitle">Codex</span></span></button>
+              <button class="ma-quick-entry"><span class="ma-quick-plus">+</span><span class="ma-quick-copy"><span class="ma-quick-title">新建事件</span><span class="ma-quick-subtitle">Event</span></span></button>
+              <button class="ma-quick-entry"><span class="ma-quick-plus">+</span><span class="ma-quick-copy"><span class="ma-quick-title">新建地点</span><span class="ma-quick-subtitle">Location</span></span></button>
+              <button class="ma-quick-entry"><span class="ma-quick-plus">+</span><span class="ma-quick-copy"><span class="ma-quick-title">新建地图</span><span class="ma-quick-subtitle">Atlas</span></span></button>
+              <button class="ma-quick-entry"><span class="ma-quick-plus">+</span><span class="ma-quick-copy"><span class="ma-quick-title">新建手稿</span><span class="ma-quick-subtitle">Manuscript</span></span></button>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <nav class="fixed inset-x-0 bottom-0 flex h-[3rem] items-end border-t border-umber/30 bg-[rgba(233,213,168,0.92)] px-4 backdrop-blur">
+        <button class="sheet-tab sheet-tab-active">首页</button>
+        <button class="sheet-tab">角色</button>
+        <button class="sheet-tab">词条</button>
+        <button class="sheet-tab">事件</button>
+        <button class="sheet-tab">地点</button>
+        <button class="sheet-tab">时间线</button>
+        <button class="sheet-tab">手稿箱</button>
+      </nav>
+    </div>
+  </body>
+</html>

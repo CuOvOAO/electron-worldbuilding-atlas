@@ -1,0 +1,258 @@
+{
+  "source": "e9030f66-10c9-4a7b-b550-80c839c9a41e.png",
+  "note": "18 direct single-asset crops from the supplied reference board. Output dimensions follow the labels on that board. High-quality Lanczos upscaling and restrained edge restoration were applied; the artwork was not redrawn or stylistically regenerated.",
+  "assets": [
+    {
+      "file": "sidebar-shell@2x.png",
+      "source_crop": [
+        21,
+        61,
+        172,
+        703
+      ],
+      "output_size": [
+        464,
+        1872
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "topbar-shell@2x.png",
+      "source_crop": [
+        210,
+        61,
+        760,
+        121
+      ],
+      "output_size": [
+        2664,
+        208
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "workspace-shell@2x.png",
+      "source_crop": [
+        211,
+        183,
+        760,
+        552
+      ],
+      "output_size": [
+        2664,
+        1640
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "home-quick-add-ticket@2x.png",
+      "source_crop": [
+        784,
+        64,
+        995,
+        530
+      ],
+      "output_size": [
+        656,
+        1396
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "home-directory-sheet@2x.png",
+      "source_crop": [
+        1034,
+        64,
+        1519,
+        455
+      ],
+      "output_size": [
+        1884,
+        1396
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "sidebar-index-plate@2x.png",
+      "source_crop": [
+        211,
+        622,
+        422,
+        704
+      ],
+      "output_size": [
+        408,
+        108
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "sidebar-nav-slot@2x.png",
+      "source_crop": [
+        463,
+        622,
+        694,
+        705
+      ],
+      "output_size": [
+        408,
+        116
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "sidebar-nav-slot-active@2x.png",
+      "source_crop": [
+        735,
+        622,
+        961,
+        706
+      ],
+      "output_size": [
+        408,
+        116
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "sidebar-vault-plate@2x.png",
+      "source_crop": [
+        1026,
+        603,
+        1254,
+        735
+      ],
+      "output_size": [
+        464,
+        192
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "sidebar-brand-ornament@2x.png",
+      "source_crop": [
+        1297,
+        605,
+        1409,
+        710
+      ],
+      "output_size": [
+        104,
+        104
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "wood-grain-tile@2x.png",
+      "source_crop": [
+        21,
+        784,
+        306,
+        995
+      ],
+      "output_size": [
+        1024,
+        512
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "paper-grain-tile@2x.png",
+      "source_crop": [
+        340,
+        783,
+        550,
+        994
+      ],
+      "output_size": [
+        1024,
+        1024
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "page-title-divider@2x.png",
+      "source_crop": [
+        577,
+        786,
+        843,
+        802
+      ],
+      "output_size": [
+        1884,
+        60
+      ],
+      "background": "transparent"
+    },
+    {
+      "file": "compass-watermark@2x.png",
+      "source_crop": [
+        651,
+        846,
+        799,
+        1003
+      ],
+      "output_size": [
+        360,
+        360
+      ],
+      "background": "transparent"
+    },
+    {
+      "file": "topbar-left-world@2x.png",
+      "source_crop": [
+        871,
+        788,
+        1094,
+        874
+      ],
+      "output_size": [
+        440,
+        208
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "topbar-search-tray@2x.png",
+      "source_crop": [
+        1119,
+        788,
+        1519,
+        874
+      ],
+      "output_size": [
+        1060,
+        208
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "topbar-save-return@2x.png",
+      "source_crop": [
+        870,
+        925,
+        1156,
+        1010
+      ],
+      "output_size": [
+        380,
+        208
+      ],
+      "background": "opaque"
+    },
+    {
+      "file": "topbar-utility-box@2x.png",
+      "source_crop": [
+        1191,
+        925,
+        1449,
+        1010
+      ],
+      "output_size": [
+        584,
+        208
+      ],
+      "background": "opaque"
+    }
+  ]
+}
