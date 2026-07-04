@@ -38,7 +38,7 @@ export function WorkspacePage({ vault, onBackToVaults }: WorkspacePageProps): JS
   }
 
   const pageMap: Record<ModuleKey, JSX.Element> = {
-    home: <HomePage vault={vault} activeModule={activeModule} onChangeModule={changeModule} onNavigate={navigateToTarget} />,
+    home: <HomePage vault={vault} onChangeModule={changeModule} onNavigate={navigateToTarget} />,
     characters: <CharacterPage vault={vault} target={navigationTarget?.module === 'characters' ? navigationTarget : null} onNavigate={navigateToTarget} />,
     codex: <CodexPage vault={vault} target={navigationTarget?.module === 'codex' ? navigationTarget : null} onNavigate={navigateToTarget} />,
     events: <EventPage vault={vault} target={navigationTarget?.module === 'events' ? navigationTarget : null} onNavigate={navigateToTarget} />,

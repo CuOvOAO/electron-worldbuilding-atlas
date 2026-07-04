@@ -1,56 +1,24 @@
 import { useEffect, useState } from 'react';
-import { GlobalSearch } from '../components/GlobalSearch';
-import deskFabricBg from '../assets/v10-home-a1/desk-fabric-bg.webp';
-import folderBaseHomeCenter from '../assets/v10-home-a1/folder-base-home-center.png';
-import navTabBase from '../assets/v10-home-a1/nav-tab-base.png';
-import noteDecoration from '../assets/v10-home-a1/note-decoration.png';
-import paperMainHome from '../assets/v10-home-a1/paper-main-home.png';
-import paperclipLeft from '../assets/v10-home-a1/paperclip-left.png';
-import quickaddReceiptBase from '../assets/v10-home-a1/quickadd-receipt-base.png';
-import quickaddRowBase from '../assets/v10-home-a1/quickadd-row-base.png';
-import searchFieldPaper from '../assets/v10-home-a1/search-field-paper.png';
-import sidebarBaseHome from '../assets/v10-home-a1/sidebar-base-home.png';
-import stampCircleNeutral from '../assets/v10-home-a1/stamp-circle-neutral.png';
-import starChartFineOverlay from '../assets/v10-home-a1/star-chart-fine-overlay.png';
-import utilityDividerStrip from '../assets/v10-home-a1/utility-divider-strip.png';
-import worldIdentityCard from '../assets/v10-home-a1/world-identity-card.png';
 import { dataClient } from '../services/dataClient';
-import type { ModuleKey, NavigationTarget, Vault } from '../types/app';
+import type { NavigationTarget, Vault } from '../types/app';
 import type { RecentEditItem } from '../types/entities';
 
 interface HomePageProps {
   vault: Vault;
-  activeModule: ModuleKey;
-  onChangeModule: (module: ModuleKey) => void;
+  onChangeModule: (module: NavigationTarget['module']) => void;
   onNavigate: (target: NavigationTarget) => void;
 }
 
-const creationModules: Array<{ key: ModuleKey; label: string; english: string; mark: string }> = [
-  { key: 'home', label: '首页', english: 'Home', mark: '⌂' },
-  { key: 'characters', label: '角色', english: 'Characters', mark: '♙' },
-  { key: 'codex', label: '词条', english: 'Codex', mark: '▤' },
-  { key: 'events', label: '事件', english: 'Events', mark: '✦' },
-  { key: 'locations', label: '地点', english: 'Places', mark: '⌖' },
-  { key: 'timeline', label: '时间线', english: 'Timelines', mark: '⌁' },
-  { key: 'manuscripts', label: '手稿箱', english: 'Manuscripts', mark: '□' }
-];
-
-const utilityModules: Array<{ key: ModuleKey; label: string; english: string; mark: string }> = [
-  { key: 'export', label: '导出', english: 'Export', mark: '⇧' },
-  { key: 'trash', label: '回收站', english: 'Archive Bin', mark: '⌫' },
-  { key: 'settings', label: '设置', english: 'Settings', mark: '⚙' }
-];
-
 const quickAddActions = [
-  { key: 'character', label: '新建角色', english: 'Character', mark: '♙' },
-  { key: 'codex', label: '新建词条', english: 'Codex', mark: '▤' },
-  { key: 'event', label: '新建事件', english: 'Event', mark: '✦' },
-  { key: 'location', label: '新建地点', english: 'Place', mark: '⌖' },
-  { key: 'map', label: '新建地图', english: 'Atlas', mark: '◇' },
-  { key: 'manuscript', label: '新建手稿', english: 'Manuscript', mark: '□' }
+  { key: 'character', label: '新建角色', english: 'Character' },
+  { key: 'codex', label: '新建词条', english: 'Codex' },
+  { key: 'event', label: '新建事件', english: 'Event' },
+  { key: 'location', label: '新建地点', english: 'Location' },
+  { key: 'map', label: '新建地图', english: 'Atlas' },
+  { key: 'manuscript', label: '新建手稿', english: 'Manuscript' }
 ] as const;
 
-export function HomePage({ vault, activeModule, onChangeModule, onNavigate }: HomePageProps): JSX.Element {
+export function HomePage({ vault, onChangeModule, onNavigate }: HomePageProps): JSX.Element {
   const [recentItems, setRecentItems] = useState<RecentEditItem[]>([]);
   const [error, setError] = useState('');
   const [creatingKey, setCreatingKey] = useState<string | null>(null);
@@ -109,6 +77,7 @@ export function HomePage({ vault, activeModule, onChangeModule, onNavigate }: Ho
     try {
       setError('');
       setCreatingKey(action);
+
       if (action === 'character') {
         const character = await dataClient.createCharacter(vault.path, { name: '新角色', summary: '一句话简介待填写。' });
         const version = await dataClient.createCharacterVersion(vault.path, { characterId: character.id, name: '默认版本', description: '' });
@@ -168,136 +137,69 @@ export function HomePage({ vault, activeModule, onChangeModule, onNavigate }: Ho
   }
 
   return (
-    <div className="ma-v10-home" style={{ backgroundImage: `url(${deskFabricBg})` }}>
-      <aside className="ma-v10-sidebar" aria-label="首页档案索引栏">
-        <img className="ma-v10-sidebar-bg" src={sidebarBaseHome} alt="" aria-hidden="true" />
-        <img className="ma-v10-paperclip ma-v10-paperclip-sidebar" src={paperclipLeft} alt="" aria-hidden="true" />
-        <div className="ma-v10-sidebar-content">
-          <section className="ma-v10-world-card">
-            <img className="ma-v10-world-card-bg" src={worldIdentityCard} alt="" aria-hidden="true" />
-            <div className="ma-v10-world-copy">
-              <p className="ma-v10-kicker">Current Vault</p>
-              <h1>{vault.name}</h1>
-              <p>{vault.description || '整理你的世界观资料。'}</p>
-            </div>
-          </section>
-
-          <div className="ma-v10-search-wrap">
-            <img className="ma-v10-search-bg" src={searchFieldPaper} alt="" aria-hidden="true" />
-            <GlobalSearch
-              vault={vault}
-              onNavigate={onNavigate}
-              labelClassName="ma-v10-search-label"
-              placeholder="全局搜索..."
-            />
+    <div className="ma-home-grid grid gap-5">
+      <section className="paper-panel ma-home-recent">
+        <header className="ma-section-header">
+          <div>
+            <p className="ma-eyebrow">Recently Edited</p>
+            <h2>最近编辑</h2>
           </div>
+          <button className="btn-ghost" onClick={() => onChangeModule('manuscripts')}>
+            查看全部
+          </button>
+        </header>
 
-          <nav className="ma-v10-nav-stack" aria-label="创作模块导航">
-            {creationModules.map((module) => (
-              <button key={module.key} className={`ma-v10-nav-tab ${activeModule === module.key ? 'is-active' : ''}`} onClick={() => onChangeModule(module.key)}>
-                <img src={navTabBase} alt="" aria-hidden="true" />
-                <span className="ma-v10-nav-icon" aria-hidden="true">{module.mark}</span>
-                <span>
-                  <strong>{module.label}</strong>
-                  <small>{module.english}</small>
-                </span>
-              </button>
-            ))}
-          </nav>
+        {error ? <div className="ma-empty-state">{error}</div> : null}
 
-          <img className="ma-v10-divider-strip" src={utilityDividerStrip} alt="" aria-hidden="true" />
-
-          <nav className="ma-v10-nav-stack ma-v10-utility-stack" aria-label="工具区导航">
-            {utilityModules.map((module) => (
-              <button key={module.key} className="ma-v10-nav-tab" onClick={() => onChangeModule(module.key)}>
-                <img src={navTabBase} alt="" aria-hidden="true" />
-                <span className="ma-v10-nav-icon" aria-hidden="true">{module.mark}</span>
-                <span>
-                  <strong>{module.label}</strong>
-                  <small>{module.english}</small>
-                </span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </aside>
-
-      <section className="ma-v10-center" aria-label="最近编辑">
-        <img className="ma-v10-folder-bg" src={folderBaseHomeCenter} alt="" aria-hidden="true" />
-        <img className="ma-v10-main-paper" src={paperMainHome} alt="" aria-hidden="true" />
-        <img className="ma-v10-star-overlay" src={starChartFineOverlay} alt="" aria-hidden="true" />
-        <img className="ma-v10-stamp" src={stampCircleNeutral} alt="" aria-hidden="true" />
-        <div className="ma-v10-recent-paper">
-          <header className="ma-v10-section-head">
-            <div>
-              <p className="ma-v10-kicker">Recently Edited</p>
-              <h2>最近编辑</h2>
+        {recentItems.length === 0 ? (
+          <div className="ma-empty-state">暂无最近编辑。创建角色或编辑档案后会出现在这里。</div>
+        ) : (
+          <div className="ma-recent-list">
+            <div className="ma-recent-grid">
+              {recentItems.map((item) => (
+                <button
+                  key={`${item.entityType}-${item.id}`}
+                  className="ma-recent-item"
+                  onClick={() => openRecentItem(item)}
+                  title={item.title}
+                >
+                  <div className="ma-recent-body">
+                    <span className="ma-recent-title line-clamp-2">{item.title}</span>
+                    <span className="ma-recent-summary line-clamp-2">{item.detail || '暂无摘要'}</span>
+                  </div>
+                  <div className="ma-recent-footer">
+                    <span className="ma-recent-date">{formatUpdatedAt(item.updatedAt)}</span>
+                    <span className="ma-recent-kind">{item.kind}</span>
+                  </div>
+                </button>
+              ))}
             </div>
-            <button className="ma-v10-link-button" onClick={() => onChangeModule('manuscripts')}>查看全部</button>
-          </header>
-          {error ? <div className="ma-v10-error">{error}</div> : null}
-          {recentItems.length === 0 ? (
-            <div className="ma-v10-empty">暂无最近编辑。创建角色或编辑档案后会出现在这里。</div>
-          ) : (
-            <div className="ma-v10-recent-scroll">
-              <div className="ma-v10-recent-grid">
-                {recentItems.map((item) => (
-                  <button
-                    key={`${item.entityType}-${item.id}`}
-                    className="ma-v10-recent-item"
-                    onClick={() => openRecentItem(item)}
-                    title={item.title}
-                  >
-                    <span className="ma-v10-recent-icon" aria-hidden="true">{recentIcon(item.entityType)}</span>
-                    <span className="ma-v10-recent-meta">
-                      <span className="ma-v10-recent-kind">{item.kind}</span>
-                      <span className="ma-v10-recent-date">{formatUpdatedAt(item.updatedAt)}</span>
-                    </span>
-                    <strong>{item.title}</strong>
-                    <span className="ma-v10-recent-detail">{item.detail || '暂无摘要'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </section>
 
-      <aside className="ma-v10-quick" aria-label="快速添加">
-        <img className="ma-v10-quick-bg" src={quickaddReceiptBase} alt="" aria-hidden="true" />
-        <div className="ma-v10-quick-content">
-          <header className="ma-v10-quick-head">
-            <p className="ma-v10-kicker">Quick Add</p>
+      <aside className="paper-panel ma-home-side">
+        <header className="ma-section-header">
+          <div>
+            <p className="ma-eyebrow">Quick Add</p>
             <h2>快速添加</h2>
-          </header>
-          <div className="ma-v10-quick-list">
-            {quickAddActions.map((action) => (
-              <button key={action.key} className="ma-v10-quick-row" onClick={() => createQuickItem(action.key)} disabled={creatingKey !== null}>
-                <img src={quickaddRowBase} alt="" aria-hidden="true" />
-                <span className="ma-v10-quick-mark" aria-hidden="true">{action.mark}</span>
-                <span>
-                  <strong>{creatingKey === action.key ? '创建中...' : action.label}</strong>
-                  <small>{action.english}</small>
-                </span>
-                <span className="ma-v10-quick-plus" aria-hidden="true">+</span>
-              </button>
-            ))}
           </div>
+        </header>
+
+        <div className="ma-quick-list">
+          {quickAddActions.map((action) => (
+            <button key={action.key} className="ma-quick-entry" onClick={() => createQuickItem(action.key)} disabled={creatingKey !== null}>
+              <span className="ma-quick-plus">+</span>
+              <span className="ma-quick-copy">
+                <span className="ma-quick-title">{creatingKey === action.key ? '创建中...' : action.label}</span>
+                <span className="ma-quick-subtitle">{action.english}</span>
+              </span>
+            </button>
+          ))}
         </div>
-        <img className="ma-v10-note" src={noteDecoration} alt="" aria-hidden="true" />
       </aside>
     </div>
   );
-}
-
-function recentIcon(entityType: RecentEditItem['entityType']): string {
-  if (entityType === 'character_version') return '♙';
-  if (entityType === 'codex_item') return '▤';
-  if (entityType === 'event') return '✦';
-  if (entityType === 'location') return '⌖';
-  if (entityType === 'map') return '◇';
-  if (entityType === 'timeline') return '⌁';
-  return '□';
 }
 
 function formatUpdatedAt(value: string): string {
