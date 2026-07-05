@@ -392,6 +392,10 @@ export function runMigrations(db: DatabaseSync): void {
   }
 }
 
+export function getLatestMigrationVersion(): number {
+  return Math.max(...migrations.map((migration) => migration.version));
+}
+
 export function seedInitialData(db: DatabaseSync): void {
   const existing = db.prepare('SELECT COUNT(*) as count FROM characters').get() as { count: number };
   if (existing.count > 0) {

@@ -19,7 +19,7 @@ export interface FullBackupResult {
   manifest: BackupManifest;
 }
 
-interface BackupManifest {
+export interface BackupManifest {
   format: 'manuscript-atlas-backup';
   formatVersion: 1;
   createdAt: string;
@@ -178,7 +178,7 @@ export function validateVaultForBackup(vaultPath: string): ValidationResult {
       throw new Error('schema_migrations 无法读取。');
     }
 
-    validateReferencedAssets(db, vaultPath);
+    validateReferencedAssetsForVault(db, vaultPath, '无法创建备份');
     return {
       project,
       schemaMigrationVersion: Number(migrationRow.version)
@@ -193,7 +193,7 @@ export function validateVaultForBackup(vaultPath: string): ValidationResult {
   }
 }
 
-function validateReferencedAssets(db: DatabaseSync, vaultPath: string): void {
+export function validateReferencedAssetsForVault(db: DatabaseSync, vaultPath: string, errorPrefix: string): void {
   const characterRows = db.prepare(`
     SELECT id, name, avatar_asset_id as avatarAssetId, full_body_asset_id as fullBodyAssetId
     FROM characters
@@ -206,14 +206,16 @@ function validateReferencedAssets(db: DatabaseSync, vaultPath: string): void {
       validateAssetReference(db, vaultPath, {
         assetId: character.avatarAssetId,
         entityLabel: `角色「${character.name || character.id}」`,
-        usageLabel: '头像素材'
+        usageLabel: '头像素材',
+        errorPrefix
       });
     }
     if (character.fullBodyAssetId) {
       validateAssetReference(db, vaultPath, {
         assetId: character.fullBodyAssetId,
         entityLabel: `角色「${character.name || character.id}」`,
-        usageLabel: '立绘素材'
+        usageLabel: '立绘素材',
+        errorPrefix
       });
     }
   });
@@ -229,7 +231,8 @@ function validateReferencedAssets(db: DatabaseSync, vaultPath: string): void {
       validateAssetReference(db, vaultPath, {
         assetId: map.backgroundAssetId,
         entityLabel: `地图「${map.title || map.id}」`,
-        usageLabel: '底图素材'
+        usageLabel: '底图素材',
+        errorPrefix
       });
     }
   });
@@ -238,7 +241,7 @@ function validateReferencedAssets(db: DatabaseSync, vaultPath: string): void {
 function validateAssetReference(
   db: DatabaseSync,
   vaultPath: string,
-  input: { assetId: string; entityLabel: string; usageLabel: string }
+  input: { assetId: string; entityLabel: string; usageLabel: string; errorPrefix: string }
 ): void {
   const asset = db.prepare(`
     SELECT id, relative_path as relativePath, deleted_at as deletedAt
@@ -247,14 +250,14 @@ function validateAssetReference(
   `).get(input.assetId) as { id: string; relativePath: string; deletedAt: string | null } | undefined;
 
   if (!asset) {
-    throw new Error(`无法创建备份：${input.entityLabel}引用的${input.usageLabel}记录不存在。`);
+    throw new Error(`${input.errorPrefix}：${input.entityLabel}引用的${input.usageLabel}记录不存在。`);
   }
   if (asset.deletedAt) {
-    throw new Error(`无法创建备份：${input.entityLabel}引用的${input.usageLabel}已被删除：${asset.relativePath || input.assetId}`);
+    throw new Error(`${input.errorPrefix}：${input.entityLabel}引用的${input.usageLabel}已被删除：${asset.relativePath || input.assetId}`);
   }
   const filePath = resolveAssetPathForBackup(vaultPath, asset.relativePath);
   if (!existsSync(filePath)) {
-    throw new Error(`无法创建备份：${input.entityLabel}的${input.usageLabel}不存在：${asset.relativePath}`);
+    throw new Error(`${input.errorPrefix}：${input.entityLabel}的${input.usageLabel}不存在：${asset.relativePath}`);
   }
 }
 

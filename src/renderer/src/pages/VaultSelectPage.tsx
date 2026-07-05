@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AtlasMark } from '../components/AtlasMark';
+import { backupClient, type RestoreArchivePreview } from '../services/backupClient';
 import { vaultClient } from '../services/vaultClient';
 import type { Vault } from '../types/app';
 
@@ -12,8 +13,14 @@ export function VaultSelectPage({ onOpenVault }: VaultSelectPageProps): JSX.Elem
   const [name, setName] = useState('新世界观');
   const [description, setDescription] = useState('');
   const [parentDir, setParentDir] = useState('');
+  const [restoreArchivePath, setRestoreArchivePath] = useState('');
+  const [restorePreview, setRestorePreview] = useState<RestoreArchivePreview | null>(null);
+  const [restoreName, setRestoreName] = useState('');
+  const [restoreParentDir, setRestoreParentDir] = useState('');
+  const [restoreWarning, setRestoreWarning] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     vaultClient
@@ -51,6 +58,83 @@ export function VaultSelectPage({ onOpenVault }: VaultSelectPageProps): JSX.Elem
     }
   }
 
+  async function pickRestoreArchive(): Promise<void> {
+    setError('');
+    setRestoreWarning('');
+    setLoading(true);
+    try {
+      const result = await backupClient.pickAndInspectRestoreArchive();
+      if (result.cancelled) {
+        return;
+      }
+      if (!result.archivePath || !result.preview) {
+        setError('备份包检查结果不完整。');
+        return;
+      }
+      setRestoreArchivePath(result.archivePath);
+      setRestorePreview(result.preview);
+      setRestoreName(`${result.preview.originalVaultName}（恢复副本）`);
+      setRestoreParentDir('');
+    } catch (cause) {
+      console.error(cause);
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function chooseRestoreParentDir(): Promise<void> {
+    setError('');
+    const selected = await vaultClient.chooseDirectory();
+    if (selected) {
+      setRestoreParentDir(selected);
+    }
+  }
+
+  function cancelRestorePanel(): void {
+    setRestoreArchivePath('');
+    setRestorePreview(null);
+    setRestoreName('');
+    setRestoreParentDir('');
+    setRestoreWarning('');
+    setError('');
+  }
+
+  async function restoreAsNewVault(): Promise<void> {
+    setError('');
+    setRestoreWarning('');
+    if (!restoreArchivePath || !restorePreview) {
+      setError('请先选择完整备份 ZIP。');
+      return;
+    }
+    if (!restoreName.trim()) {
+      setError('请输入新存档名称。');
+      return;
+    }
+    if (!restoreParentDir) {
+      setError('请选择恢复位置。');
+      return;
+    }
+
+    setRestoring(true);
+    try {
+      const result = await backupClient.restoreAsNewVault({
+        archivePath: restoreArchivePath,
+        targetParentDir: restoreParentDir,
+        newVaultName: restoreName
+      });
+      if (result.warning) {
+        setRestoreWarning(result.warning);
+      }
+      onOpenVault(result.vault);
+    } catch (cause) {
+      console.error(cause);
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   async function openVaultDialog(): Promise<void> {
     setError('');
     setLoading(true);
@@ -81,6 +165,8 @@ export function VaultSelectPage({ onOpenVault }: VaultSelectPageProps): JSX.Elem
     }
   }
 
+  const restoreDisabled = !restoreArchivePath || !restorePreview || !restoreName.trim() || !restoreParentDir || restoring;
+
   return (
     <main className="ma-app-shell min-h-screen bg-parchment px-8 py-10 text-ink">
       <div className="mx-auto max-w-6xl">
@@ -106,10 +192,66 @@ export function VaultSelectPage({ onOpenVault }: VaultSelectPageProps): JSX.Elem
             <button className="btn-ghost" onClick={openVaultDialog} disabled={loading}>
               打开本地存档
             </button>
+            <button className="btn-ghost" onClick={pickRestoreArchive} disabled={loading || restoring}>
+              从完整备份恢复
+            </button>
           </div>
         </header>
 
         {error ? <div className="status-danger mb-5">{error}</div> : null}
+        {restoreWarning ? <div className="mb-5 rounded-md border border-copper/35 bg-batter/65 px-4 py-3 text-sm text-copper">{restoreWarning}</div> : null}
+
+        {restorePreview ? (
+          <section className="paper-panel mb-5">
+            <div className="mb-5 border-b border-sepia/20 pb-4">
+              <p className="ma-eyebrow">Restore Backup</p>
+              <h2 className="ma-section-title">
+                恢复为新存档
+                <span className="ma-title-slash">/</span>
+                <span className="ma-title-en">New Vault</span>
+              </h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-copper">原存档</p>
+                <p className="mt-2 break-all text-sm text-ink">{restorePreview.originalVaultName}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-copper">备份时间</p>
+                <p className="mt-2 break-all text-sm text-ink">{restorePreview.createdAt}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-copper">应用版本</p>
+                <p className="mt-2 text-sm text-ink">{restorePreview.appVersion}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-copper">素材 / 文件</p>
+                <p className="mt-2 text-sm text-ink">
+                  {restorePreview.assetCount} / {restorePreview.fileCount}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 break-all text-xs text-sepia">{restoreArchivePath}</p>
+            <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto]">
+              <label className="block">
+                <span className="mb-2 block text-sm text-copper">新存档名称</span>
+                <input className="field w-full" value={restoreName} onChange={(event) => setRestoreName(event.target.value)} />
+              </label>
+              <div className="flex items-end gap-3">
+                <button className="btn-parchment" onClick={chooseRestoreParentDir} disabled={restoring}>
+                  选择恢复位置
+                </button>
+                <button className="btn-primary" onClick={restoreAsNewVault} disabled={restoreDisabled}>
+                  {restoring ? '正在恢复...' : '恢复'}
+                </button>
+                <button className="btn-ghost" onClick={cancelRestorePanel} disabled={restoring}>
+                  取消
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 break-all text-sm text-sepia">恢复位置：{restoreParentDir || '尚未选择'}</p>
+          </section>
+        ) : null}
 
         <section className="paper-panel mb-5">
           <div className="mb-5 border-b border-sepia/20 pb-4">

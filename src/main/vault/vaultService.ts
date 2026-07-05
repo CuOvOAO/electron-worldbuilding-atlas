@@ -30,7 +30,7 @@ function recentVaultsPath(): string {
   return join(app.getPath('userData'), 'recent-vaults.json');
 }
 
-function safeFolderName(name: string): string {
+export function safeFolderName(name: string): string {
   const cleaned = name.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').replace(/\s+/g, ' ');
   return cleaned || `WorldProject-${Date.now()}`;
 }

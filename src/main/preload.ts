@@ -17,7 +17,9 @@ contextBridge.exposeInMainWorld('manuscriptAtlas', {
     mapPngBatch: (vaultPath: string, input: unknown) => ipcRenderer.invoke('export:mapPngBatch', vaultPath, input)
   },
   backup: {
-    createFullVaultBackup: (vaultPath: string) => ipcRenderer.invoke('backup:createFullVaultBackup', vaultPath)
+    createFullVaultBackup: (vaultPath: string) => ipcRenderer.invoke('backup:createFullVaultBackup', vaultPath),
+    pickAndInspectRestoreArchive: () => ipcRenderer.invoke('backup:pickAndInspectRestoreArchive'),
+    restoreAsNewVault: (input: { archivePath: string; targetParentDir: string; newVaultName: string }) => ipcRenderer.invoke('backup:restoreAsNewVault', input)
   },
   assets: {
     importImage: (vaultPath: string) => ipcRenderer.invoke('asset:importImage', vaultPath),

@@ -33,6 +33,22 @@ declare global {
       };
       backup: {
         createFullVaultBackup: (vaultPath: string) => Promise<IpcResult<{ success: boolean; cancelled: boolean; result?: unknown }>>;
+        pickAndInspectRestoreArchive: () => Promise<
+          IpcResult<{
+            cancelled: boolean;
+            archivePath?: string;
+            preview?: {
+              originalVaultId: string;
+              originalVaultName: string;
+              createdAt: string;
+              appVersion: string;
+              schemaMigrationVersion: number;
+              assetCount: number;
+              fileCount: number;
+            };
+          }>
+        >;
+        restoreAsNewVault: (input: { archivePath: string; targetParentDir: string; newVaultName: string }) => Promise<IpcResult<{ vault: VaultProject; warning?: string }>>;
       };
       assets: {
         importImage: (vaultPath: string) => Promise<IpcResult<{ asset: unknown | null; cancelled?: boolean }>>;
