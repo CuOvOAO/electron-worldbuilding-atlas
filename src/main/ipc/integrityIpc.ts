@@ -2,11 +2,11 @@ import { ipcMain } from 'electron';
 import { checkVaultIntegrity } from '../integrity/integrityService';
 
 export function registerIntegrityIpc(): void {
-  ipcMain.handle('integrity:checkCurrentVault', (_event, vaultPath: string) => {
+  ipcMain.handle('integrity:checkCurrentVault', async (_event, vaultPath: string) => {
     try {
       return {
         ok: true,
-        report: checkVaultIntegrity(vaultPath)
+        report: await checkVaultIntegrity(vaultPath)
       };
     } catch (error) {
       console.error('存档完整性检查失败', error);

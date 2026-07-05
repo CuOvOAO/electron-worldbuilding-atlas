@@ -1,6 +1,7 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { isAbsolute, join, normalize, relative, resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { backup, DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 import { resolveAssetPath } from '../assets/assetProtocol';
 import { getLatestMigrationVersion } from '../db/migrations';
@@ -34,6 +35,11 @@ export interface IntegrityReport {
     checkedAssetCount: number;
   };
   issues: IntegrityIssue[];
+}
+
+interface SnapshotDatabase {
+  db: DatabaseSync;
+  cleanup: () => void;
 }
 
 interface ProjectJson {
@@ -79,7 +85,7 @@ const coreTables = [
   'schema_migrations'
 ];
 
-export function checkVaultIntegrity(vaultPath: string): IntegrityReport {
+export async function checkVaultIntegrity(vaultPath: string): Promise<IntegrityReport> {
   const issues: IntegrityIssue[] = [];
   const checkedAt = new Date().toISOString();
   let checkedAssetCount = 0;
@@ -96,9 +102,9 @@ export function checkVaultIntegrity(vaultPath: string): IntegrityReport {
     return finalizeReport(checkedAt, checkedAssetCount, issues);
   }
 
-  let db: DatabaseSync;
+  let snapshot: SnapshotDatabase;
   try {
-    db = openReadOnlyDatabase(dbPath);
+    snapshot = await openSnapshotDatabase(dbPath);
   } catch {
     addIssue(issues, {
       severity: 'critical',
@@ -110,11 +116,11 @@ export function checkVaultIntegrity(vaultPath: string): IntegrityReport {
   }
 
   try {
-    const databaseReady = checkDatabase(db, issues);
+    const databaseReady = checkDatabase(snapshot.db, issues);
     if (!databaseReady) {
       return finalizeReport(checkedAt, checkedAssetCount, issues);
     }
-    checkedAssetCount = checkAssetsAndReferences(vaultPath, db, issues);
+    checkedAssetCount = checkAssetsAndReferences(vaultPath, snapshot.db, issues);
     if (project) {
       addIssue(issues, {
         severity: 'info',
@@ -124,15 +130,42 @@ export function checkVaultIntegrity(vaultPath: string): IntegrityReport {
       });
     }
   } finally {
-    db.close();
+    snapshot.cleanup();
   }
 
   return finalizeReport(checkedAt, checkedAssetCount, issues);
 }
 
-function openReadOnlyDatabase(dbPath: string): DatabaseSync {
-  const uri = `${pathToFileURL(dbPath).href}?mode=ro&immutable=1`;
-  return new DatabaseSync(uri, { readOnly: true } as any);
+async function openSnapshotDatabase(dbPath: string): Promise<SnapshotDatabase> {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'manuscript-atlas-integrity-'));
+  const snapshotPath = join(tempRoot, 'world-snapshot.db');
+  let sourceDb: DatabaseSync | null = null;
+  let snapshotDb: DatabaseSync | null = null;
+
+  try {
+    sourceDb = new DatabaseSync(`${pathToFileURL(dbPath).href}?mode=ro`, { readOnly: true } as any);
+    await backup(sourceDb, snapshotPath);
+    sourceDb.close();
+    sourceDb = null;
+    snapshotDb = new DatabaseSync(`${pathToFileURL(snapshotPath).href}?mode=ro&immutable=1`, { readOnly: true } as any);
+    return {
+      db: snapshotDb,
+      cleanup: () => {
+        snapshotDb?.close();
+        snapshotDb = null;
+        rmSync(tempRoot, { recursive: true, force: true });
+      }
+    };
+  } catch (error) {
+    if (snapshotDb) {
+      snapshotDb.close();
+    }
+    if (sourceDb) {
+      sourceDb.close();
+    }
+    rmSync(tempRoot, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function checkProjectJson(vaultPath: string, issues: IntegrityIssue[]): ProjectJson | null {
