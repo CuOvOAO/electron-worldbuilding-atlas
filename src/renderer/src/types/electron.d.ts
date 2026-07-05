@@ -50,6 +50,35 @@ declare global {
         >;
         restoreAsNewVault: (input: { archivePath: string; targetParentDir: string; newVaultName: string }) => Promise<IpcResult<{ vault: VaultProject; warning?: string }>>;
       };
+      integrity: {
+        checkCurrentVault: (vaultPath: string) => Promise<
+          IpcResult<{
+            report: {
+              checkedAt: string;
+              summary: {
+                status: 'healthy' | 'warning' | 'critical';
+                criticalCount: number;
+                warningCount: number;
+                infoCount: number;
+                checkedAssetCount: number;
+              };
+              issues: Array<{
+                id: string;
+                severity: 'critical' | 'warning' | 'info';
+                category: 'project' | 'database' | 'schema' | 'asset' | 'reference';
+                message: string;
+                entity?: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                relativePath?: string;
+                suggestion: string;
+              }>;
+            };
+          }>
+        >;
+      };
       assets: {
         importImage: (vaultPath: string) => Promise<IpcResult<{ asset: unknown | null; cancelled?: boolean }>>;
         listImages: (vaultPath: string) => Promise<IpcResult<{ assets: unknown[] }>>;

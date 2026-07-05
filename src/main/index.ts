@@ -5,6 +5,7 @@ import { registerAssetIpc } from './ipc/assetIpc';
 import { registerBackupIpc } from './ipc/backupIpc';
 import { registerDataIpc } from './ipc/dataIpc';
 import { registerExportIpc } from './ipc/exportIpc';
+import { registerIntegrityIpc } from './ipc/integrityIpc';
 import { registerVaultIpc } from './ipc/vaultIpc';
 
 const createWindow = (): void => {
@@ -38,6 +39,7 @@ app.whenReady().then(() => {
   registerExportIpc();
   registerAssetIpc();
   registerBackupIpc();
+  registerIntegrityIpc();
   createWindow();
 
   app.on('activate', () => {

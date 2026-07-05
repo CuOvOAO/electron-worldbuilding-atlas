@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('manuscriptAtlas', {
     pickAndInspectRestoreArchive: () => ipcRenderer.invoke('backup:pickAndInspectRestoreArchive'),
     restoreAsNewVault: (input: { archivePath: string; targetParentDir: string; newVaultName: string }) => ipcRenderer.invoke('backup:restoreAsNewVault', input)
   },
+  integrity: {
+    checkCurrentVault: (vaultPath: string) => ipcRenderer.invoke('integrity:checkCurrentVault', vaultPath)
+  },
   assets: {
     importImage: (vaultPath: string) => ipcRenderer.invoke('asset:importImage', vaultPath),
     listImages: (vaultPath: string) => ipcRenderer.invoke('asset:listImages', vaultPath),
