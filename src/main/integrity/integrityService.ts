@@ -45,8 +45,10 @@ interface SnapshotDatabase {
 interface ProjectJson {
   id: string;
   name: string;
+  description: string;
   createdAt: string;
   updatedAt: string;
+  appVersion: string;
 }
 
 interface AssetRow {
@@ -73,17 +75,46 @@ interface ReferenceRow {
 }
 
 const coreTables = [
+  'assets',
   'characters',
   'character_versions',
   'codex_items',
+  'codex_aliases',
   'events',
   'locations',
   'timelines',
+  'relationships',
+  'relationship_stages',
   'maps',
+  'map_layers',
+  'map_objects',
   'manuscripts',
-  'assets',
+  'content_blocks',
+  'entity_links',
+  'search_index',
   'schema_migrations'
 ];
+
+const requiredColumns: Record<string, string[]> = {
+  assets: ['id', 'created_at', 'updated_at', 'deleted_at', 'asset_type', 'relative_path', 'original_name', 'mime_type'],
+  characters: ['id', 'name', 'summary', 'avatar_asset_id', 'full_body_asset_id', 'deleted_at'],
+  character_versions: ['id', 'character_id', 'name', 'description', 'timeline_id', 'is_default', 'deleted_at'],
+  codex_items: ['id', 'title', 'summary', 'type', 'export_enabled', 'deleted_at'],
+  codex_aliases: ['id', 'codex_item_id', 'alias', 'deleted_at'],
+  events: ['id', 'title', 'timeline_id', 'start_display_time', 'end_display_time', 'duration_note', 'start_sort_index', 'end_sort_index', 'body', 'export_enabled', 'deleted_at'],
+  locations: ['id', 'name', 'type', 'summary', 'body', 'export_enabled', 'deleted_at'],
+  timelines: ['id', 'name', 'description', 'parent_timeline_id', 'branch_event_id', 'branch_note', 'sort_order', 'deleted_at'],
+  manuscripts: ['id', 'title', 'body', 'manuscript_type', 'export_enabled', 'deleted_at'],
+  relationships: ['id', 'source_character_version_id', 'target_character_version_id', 'timeline_id', 'direction_mode', 'deleted_at'],
+  relationship_stages: ['id', 'relationship_id', 'relation_type', 'description', 'start_sort_index', 'end_sort_index', 'related_event_id', 'deleted_at'],
+  maps: ['id', 'name', 'title', 'description', 'background_asset_id', 'canvas_width', 'canvas_height', 'source_map_id', 'version_group_id', 'deleted_at'],
+  map_layers: ['id', 'map_id', 'name', 'visible', 'locked', 'opacity', 'sort_order', 'deleted_at'],
+  map_objects: ['id', 'map_id', 'layer_id', 'type', 'name', 'description', 'x', 'y', 'geometry_json', 'style_json', 'properties_json', 'deleted_at'],
+  content_blocks: ['id', 'owner_entity_type', 'owner_entity_id', 'block_type', 'title', 'content_json', 'sort_order', 'collapsed', 'export_enabled', 'deleted_at'],
+  entity_links: ['id', 'source_entity_type', 'source_entity_id', 'target_entity_type', 'target_entity_id', 'link_type', 'note', 'deleted_at'],
+  search_index: ['entity_type', 'entity_id', 'title', 'body', 'updated_at'],
+  schema_migrations: ['version', 'name', 'applied_at']
+};
 
 export async function checkVaultIntegrity(vaultPath: string): Promise<IntegrityReport> {
   const issues: IntegrityIssue[] = [];
@@ -120,6 +151,7 @@ export async function checkVaultIntegrity(vaultPath: string): Promise<IntegrityR
     if (!databaseReady) {
       return finalizeReport(checkedAt, checkedAssetCount, issues);
     }
+    checkLogicalReferences(snapshot.db, issues);
     checkedAssetCount = checkAssetsAndReferences(vaultPath, snapshot.db, issues);
     if (project) {
       addIssue(issues, {
@@ -134,6 +166,78 @@ export async function checkVaultIntegrity(vaultPath: string): Promise<IntegrityR
   }
 
   return finalizeReport(checkedAt, checkedAssetCount, issues);
+}
+
+function checkLogicalReferences(db: DatabaseSync, issues: IntegrityIssue[]): void {
+  const addBrokenReference = (message: string): void => addIssue(issues, {
+    severity: 'critical',
+    category: 'reference',
+    message,
+    suggestion: '请先创建完整备份，再人工核对并修复相关资料引用。'
+  });
+
+  const invalidLayerObjects = Number((db.prepare(`
+    SELECT COUNT(*) AS count FROM map_objects o
+    LEFT JOIN maps m ON m.id = o.map_id AND m.deleted_at IS NULL
+    LEFT JOIN map_layers l ON l.id = o.layer_id AND l.map_id = o.map_id AND l.deleted_at IS NULL
+    WHERE o.deleted_at IS NULL AND (m.id IS NULL OR l.id IS NULL)
+  `).get() as { count: number }).count);
+  if (invalidLayerObjects > 0) addBrokenReference(`发现 ${invalidLayerObjects} 个地图对象引用了不存在、已删除或属于其他地图的图层。`);
+
+  const invalidTimelineBranches = Number((db.prepare(`
+    SELECT COUNT(*) AS count FROM timelines t
+    LEFT JOIN timelines p ON p.id = t.parent_timeline_id AND p.deleted_at IS NULL
+    LEFT JOIN events e ON e.id = t.branch_event_id AND e.deleted_at IS NULL
+    WHERE t.deleted_at IS NULL AND (
+      (t.parent_timeline_id IS NOT NULL AND p.id IS NULL)
+      OR (t.branch_event_id IS NOT NULL AND e.id IS NULL)
+    )
+  `).get() as { count: number }).count);
+  if (invalidTimelineBranches > 0) addBrokenReference(`发现 ${invalidTimelineBranches} 条时间线分支引用了不存在或已删除的父时间线/事件。`);
+
+  const invalidRelationshipStages = Number((db.prepare(`
+    SELECT COUNT(*) AS count FROM relationship_stages s
+    LEFT JOIN relationships r ON r.id = s.relationship_id AND r.deleted_at IS NULL
+    LEFT JOIN events e ON e.id = s.related_event_id AND e.deleted_at IS NULL
+    WHERE s.deleted_at IS NULL AND (r.id IS NULL OR (s.related_event_id IS NOT NULL AND e.id IS NULL))
+  `).get() as { count: number }).count);
+  if (invalidRelationshipStages > 0) addBrokenReference(`发现 ${invalidRelationshipStages} 个关系阶段引用了不存在或已删除的关系/事件。`);
+
+  const invalidMapVersions = Number((db.prepare(`
+    SELECT COUNT(*) AS count FROM maps m
+    LEFT JOIN maps source ON source.id = m.source_map_id AND source.deleted_at IS NULL
+    WHERE m.deleted_at IS NULL AND m.source_map_id IS NOT NULL AND source.id IS NULL
+  `).get() as { count: number }).count);
+  if (invalidMapVersions > 0) addBrokenReference(`发现 ${invalidMapVersions} 张地图引用了不存在或已删除的来源地图。`);
+
+  const links = db.prepare(`
+    SELECT id, source_entity_type AS sourceType, source_entity_id AS sourceId,
+      target_entity_type AS targetType, target_entity_id AS targetId
+    FROM entity_links WHERE deleted_at IS NULL
+  `).all() as Array<{ id: string; sourceType: string; sourceId: string; targetType: string; targetId: string }>;
+  const invalidLinks = links.filter((link) =>
+    !logicalEntityExists(db, link.sourceType, link.sourceId)
+    || !logicalEntityExists(db, link.targetType, link.targetId)
+  );
+  if (invalidLinks.length > 0) addBrokenReference(`发现 ${invalidLinks.length} 条资料关联引用了未知类型、不存在或已删除的资料。`);
+}
+
+function logicalEntityExists(db: DatabaseSync, entityType: string, entityId: string): boolean {
+  const tables: Record<string, string> = {
+    character: 'characters',
+    character_version: 'character_versions',
+    codex_item: 'codex_items',
+    event: 'events',
+    location: 'locations',
+    manuscript: 'manuscripts',
+    timeline: 'timelines',
+    relationship: 'relationships',
+    relationship_stage: 'relationship_stages',
+    map: 'maps',
+    map_object: 'map_objects'
+  };
+  const table = tables[entityType];
+  return Boolean(table && db.prepare(`SELECT id FROM ${table} WHERE id = ? AND deleted_at IS NULL`).get(entityId));
 }
 
 async function openSnapshotDatabase(dbPath: string): Promise<SnapshotDatabase> {
@@ -206,7 +310,8 @@ function checkProjectJson(vaultPath: string, issues: IntegrityIssue[]): ProjectJ
   const project = parsed as Partial<ProjectJson>;
   const checks: Array<[keyof ProjectJson, string]> = [
     ['id', 'project.json 缺少有效 id。'],
-    ['name', 'project.json 缺少有效 name。']
+    ['name', 'project.json 缺少有效 name。'],
+    ['appVersion', 'project.json 缺少有效 appVersion。']
   ];
   for (const [key, message] of checks) {
     if (typeof project[key] !== 'string' || !project[key]?.trim()) {
@@ -217,6 +322,14 @@ function checkProjectJson(vaultPath: string, issues: IntegrityIssue[]): ProjectJ
         suggestion: '请从完整备份中恢复项目资料文件，或在确认风险后手动修复 project.json。'
       });
     }
+  }
+  if (typeof project.description !== 'string') {
+    addIssue(issues, {
+      severity: 'critical',
+      category: 'project',
+      message: 'project.json 缺少有效 description。',
+      suggestion: '请从完整备份恢复 project.json，或联系维护者人工检查。'
+    });
   }
   for (const key of ['createdAt', 'updatedAt'] as const) {
     if (typeof project[key] !== 'string' || !Number.isFinite(Date.parse(project[key] ?? ''))) {
@@ -262,7 +375,7 @@ function checkDatabase(db: DatabaseSync, issues: IntegrityIssue[]): boolean {
     const foreignKeyRows = db.prepare('PRAGMA foreign_key_check').all() as Array<Record<string, unknown>>;
     if (foreignKeyRows.length > 0) {
       addIssue(issues, {
-        severity: 'warning',
+        severity: 'critical',
         category: 'database',
         message: `数据库外键检查发现 ${foreignKeyRows.length} 条异常关系。`,
         suggestion: '请先备份当前存档，再人工核对相关数据引用。'
@@ -298,6 +411,25 @@ function checkDatabase(db: DatabaseSync, issues: IntegrityIssue[]): boolean {
         message: `数据库缺少核心表：${tableName}。`,
         suggestion: '请从完整备份恢复数据库，或联系维护者人工检查该存档。'
       });
+    }
+  }
+  if (issues.some((issue) => issue.category === 'schema' && issue.severity === 'critical')) {
+    return false;
+  }
+
+  for (const [tableName, expectedColumns] of Object.entries(requiredColumns)) {
+    const actualColumns = new Set(
+      (db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>).map((column) => column.name)
+    );
+    for (const columnName of expectedColumns) {
+      if (!actualColumns.has(columnName)) {
+        addIssue(issues, {
+          severity: 'critical',
+          category: 'schema',
+          message: `数据库核心表 ${tableName} 缺少字段：${columnName}。`,
+          suggestion: '请从完整备份恢复数据库，或联系维护者人工检查该存档。'
+        });
+      }
     }
   }
   if (issues.some((issue) => issue.category === 'schema' && issue.severity === 'critical')) {

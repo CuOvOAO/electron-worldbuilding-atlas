@@ -1,14 +1,18 @@
 import { randomUUID, createHash } from 'node:crypto';
 import {
   copyFileSync,
+  closeSync,
   createWriteStream,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   renameSync,
   rmSync,
+  statfsSync,
   statSync,
   writeFileSync
 } from 'node:fs';
@@ -25,13 +29,15 @@ import {
 import { pipeline } from 'node:stream/promises';
 import { DatabaseSync } from 'node:sqlite';
 import * as yauzl from 'yauzl';
+import { assertDatabaseIntegrity } from '../db/integrityChecks';
 import { getLatestMigrationVersion } from '../db/migrations';
 import { addRecentVault, ensureVaultReady, readProject, readRecentVaults, safeFolderName, type VaultProject, worldDbPath } from '../vault/vaultService';
 import { type BackupManifest, validateReferencedAssetsForVault } from './backupService';
 
 const backupExtension = '.manuscript-atlas-backup.zip';
 const maxEntries = 20_000;
-const maxTotalUncompressedSize = 4 * 1024 * 1024 * 1024;
+const maxSingleUncompressedSize = 512 * 1024 * 1024;
+const maxTotalUncompressedSize = 2 * 1024 * 1024 * 1024;
 const zipOptions: yauzl.Options = {
   lazyEntries: true,
   validateEntrySizes: true,
@@ -115,6 +121,11 @@ export async function restoreAsNewVault(input: RestoreAsNewVaultInput, appVersio
   let finalPath = '';
 
   try {
+    assertFreeDiskSpace(
+      input.targetParentDir,
+      inspected.manifest.files.reduce((total, file) => total + file.size, 0),
+      '无法恢复'
+    );
     const target = prepareRestoreTarget(input, inspected.project);
     stagingPath = target.stagingPath;
     finalPath = target.finalPath;
@@ -209,13 +220,16 @@ async function readAndValidateZipEntries(archivePath: string): Promise<ZipEntryI
   try {
     for await (const entry of zipFile.eachEntry()) {
       const info = validateZipEntry(entry, seenFiles);
+      if (!info.isDirectory && info.uncompressedSize > maxSingleUncompressedSize) {
+        throw new Error('无法恢复：ZIP 中存在超过 512 MB 的单个文件，已拒绝。');
+      }
       entries.push(info);
       if (entries.length > maxEntries) {
         throw new Error(`无法恢复：ZIP 文件条目超过 ${maxEntries} 个，已拒绝。`);
       }
       totalUncompressedSize += info.uncompressedSize;
       if (totalUncompressedSize > maxTotalUncompressedSize) {
-        throw new Error('无法恢复：ZIP 解压后体积超过 4 GB，已拒绝。');
+        throw new Error('无法恢复：ZIP 解压后体积超过 2 GB，已拒绝。');
       }
     }
   } catch (error) {
@@ -476,6 +490,7 @@ function validateDatabase(vaultDir: string, manifest: BackupManifest): void {
   }
 
   try {
+    assertDatabaseIntegrity(db, '无法恢复');
     const latestSupportedVersion = getLatestMigrationVersion();
     const schemaRow = db.prepare(`
       SELECT name
@@ -590,8 +605,26 @@ function copyDirectory(source: string, target: string): void {
 
 function sha256File(filePath: string): string {
   const hash = createHash('sha256');
-  hash.update(readFileSync(filePath));
+  const buffer = Buffer.allocUnsafe(1024 * 1024);
+  const fd = openSync(filePath, 'r');
+  try {
+    let bytesRead = 0;
+    while ((bytesRead = readSync(fd, buffer, 0, buffer.length, null)) > 0) {
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+  } finally {
+    closeSync(fd);
+  }
   return hash.digest('hex');
+}
+
+function assertFreeDiskSpace(targetDirectory: string, payloadBytes: number, prefix: string): void {
+  const stats = statfsSync(targetDirectory, { bigint: true });
+  const availableBytes = stats.bavail * stats.bsize;
+  const requiredBytes = BigInt(payloadBytes + 64 * 1024 * 1024);
+  if (availableBytes < requiredBytes) {
+    throw new Error(`${prefix}：目标磁盘可用空间不足，至少需要约 ${Math.ceil(Number(requiredBytes) / 1024 / 1024)} MB。`);
+  }
 }
 
 function isInsideOrSame(candidatePath: string, parentPath: string): boolean {

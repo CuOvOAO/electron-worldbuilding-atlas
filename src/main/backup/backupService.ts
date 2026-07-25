@@ -1,9 +1,11 @@
 import * as archiver from 'archiver';
-import { createHash } from 'node:crypto';
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { closeSync, copyFileSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, renameSync, rmSync, statfsSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { assertDatabaseVersionSupported } from '../db/compatibility';
+import { assertDatabaseIntegrity } from '../db/integrityChecks';
 import { readProject, worldDbPath } from '../vault/vaultService';
 
 const checkpointErrorMessage = '数据库当前无法完成安全备份，请关闭可能同时打开该存档的其他程序后重试。';
@@ -71,7 +73,7 @@ export function normalizeBackupTargetPath(targetPath: string): string {
 
 export async function createFullVaultBackup(vaultPath: string, targetPath: string, appVersion: string): Promise<FullBackupResult> {
   const finalPath = normalizeBackupTargetPath(targetPath);
-  const partialPath = `${finalPath}.partial`;
+  const partialPath = join(dirname(finalPath), `.${basename(finalPath)}.${randomUUID()}.partial${backupExtension}`);
   let tempRoot = '';
 
   try {
@@ -80,6 +82,7 @@ export async function createFullVaultBackup(vaultPath: string, targetPath: strin
     tempRoot = createTempRoot();
     const snapshot = createSnapshot(vaultPath, tempRoot);
     const files = collectPayloadFiles(snapshot.payloadDir);
+    assertFreeDiskSpace(dirname(finalPath), files.reduce((total, file) => total + file.size, 0), '无法创建备份');
     const assetCount = files.filter((file) => file.path.startsWith('vault/assets/')).length;
     const manifest: BackupManifest = {
       format: 'manuscript-atlas-backup',
@@ -109,10 +112,8 @@ export async function createFullVaultBackup(vaultPath: string, targetPath: strin
     if (partialSize <= 0) {
       throw new Error('备份文件生成失败：临时 ZIP 文件为空。');
     }
-    if (existsSync(finalPath)) {
-      rmSync(finalPath, { force: true });
-    }
-    renameSync(partialPath, finalPath);
+    await validateGeneratedBackup(partialPath);
+    replaceBackupWithRollback(partialPath, finalPath);
     const size = statSync(finalPath).size;
     return {
       filePath: finalPath,
@@ -131,6 +132,43 @@ export async function createFullVaultBackup(vaultPath: string, targetPath: strin
     if (tempRoot && existsSync(tempRoot)) {
       rmSync(tempRoot, { recursive: true, force: true });
     }
+  }
+}
+
+async function validateGeneratedBackup(backupPath: string): Promise<void> {
+  try {
+    const { inspectRestoreArchive } = await import('./restoreService');
+    await inspectRestoreArchive(backupPath);
+  } catch (error) {
+    throw new Error(`备份文件生成失败：最终 ZIP 自检未通过：${readableError(error)}`);
+  }
+}
+
+export function replaceBackupWithRollback(sourcePath: string, finalPath: string): void {
+  if (!existsSync(finalPath)) {
+    renameSync(sourcePath, finalPath);
+    return;
+  }
+
+  const rollbackPath = `${finalPath}.previous-${randomUUID()}`;
+  renameSync(finalPath, rollbackPath);
+  try {
+    renameSync(sourcePath, finalPath);
+  } catch (error) {
+    try {
+      renameSync(rollbackPath, finalPath);
+    } catch (rollbackError) {
+      throw new Error(
+        `新备份替换失败，旧备份保留在 ${rollbackPath}，但无法自动恢复原文件名：${readableError(rollbackError)}`
+      );
+    }
+    throw new Error(`新备份替换失败，旧备份已恢复：${readableError(error)}`);
+  }
+
+  try {
+    rmSync(rollbackPath, { force: true });
+  } catch (error) {
+    console.warn('新备份已写入，但旧备份回滚文件未能清理', { rollbackPath, error });
   }
 }
 
@@ -159,6 +197,7 @@ export function validateVaultForBackup(vaultPath: string): ValidationResult {
 
   let db: DatabaseSync;
   try {
+    assertDatabaseVersionSupported(dbPath);
     db = new DatabaseSync(dbPath);
   } catch (error) {
     throw new Error(`无法创建备份：world.db 无法打开：${readableError(error)}`);
@@ -178,6 +217,7 @@ export function validateVaultForBackup(vaultPath: string): ValidationResult {
       throw new Error('schema_migrations 无法读取。');
     }
 
+    assertDatabaseIntegrity(db, '无法创建备份');
     validateReferencedAssetsForVault(db, vaultPath, '无法创建备份');
     return {
       project,
@@ -409,9 +449,26 @@ function writeZip(payloadDir: string, partialPath: string): Promise<void> {
 
 function sha256File(filePath: string): string {
   const hash = createHash('sha256');
-  const chunks = readFileSync(filePath);
-  hash.update(chunks);
+  const buffer = Buffer.allocUnsafe(1024 * 1024);
+  const fd = openSync(filePath, 'r');
+  try {
+    let bytesRead = 0;
+    while ((bytesRead = readSync(fd, buffer, 0, buffer.length, null)) > 0) {
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+  } finally {
+    closeSync(fd);
+  }
   return hash.digest('hex');
+}
+
+function assertFreeDiskSpace(targetDirectory: string, payloadBytes: number, prefix: string): void {
+  const stats = statfsSync(targetDirectory, { bigint: true });
+  const availableBytes = stats.bavail * stats.bsize;
+  const requiredBytes = BigInt(payloadBytes + 64 * 1024 * 1024);
+  if (availableBytes < requiredBytes) {
+    throw new Error(`${prefix}：目标磁盘可用空间不足，至少需要约 ${Math.ceil(Number(requiredBytes) / 1024 / 1024)} MB。`);
+  }
 }
 
 function createTempRoot(): string {
