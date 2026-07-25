@@ -130,25 +130,10 @@ export function EventPage({ vault, target, onNavigate }: EventPageProps): JSX.El
   }
 
   async function save(): Promise<void> {
-    await dataClient.updateEvent(vault.path, draft);
-    await syncLinks();
+    await dataClient.saveEventAggregate(vault.path, { item: draft, links: draft.links });
     setSaved(draft);
     setEditing(false);
     await load(draft.id);
-  }
-
-  async function syncLinks(): Promise<void> {
-    const draftIds = new Set(draft.links.filter((link: any) => !String(link.id).startsWith('draft-')).map((link: any) => link.id));
-    for (const link of draft.links) {
-      if (String(link.id).startsWith('draft-')) {
-        await dataClient.createEntityLink(vault.path, link);
-      }
-    }
-    for (const link of saved.links) {
-      if (!draftIds.has(link.id)) {
-        await dataClient.deleteEntityLink(vault.path, link.id);
-      }
-    }
   }
 
   async function deleteEvent(): Promise<void> {

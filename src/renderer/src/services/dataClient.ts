@@ -12,6 +12,21 @@ function notifyMovedToTrash(): void {
 }
 
 export const dataClient = {
+  async saveCodexAggregate(vaultPath: string, input: any): Promise<void> {
+    unwrap(await window.manuscriptAtlas.data.saveCodexAggregate(vaultPath, input));
+  },
+  async saveEventAggregate(vaultPath: string, input: any): Promise<void> {
+    unwrap(await window.manuscriptAtlas.data.saveEventAggregate(vaultPath, input));
+  },
+  async saveTimelineAggregate(vaultPath: string, input: any): Promise<void> {
+    unwrap(await window.manuscriptAtlas.data.saveTimelineAggregate(vaultPath, input));
+  },
+  async saveMapAggregate(vaultPath: string, input: any): Promise<void> {
+    unwrap(await window.manuscriptAtlas.data.saveMapAggregate(vaultPath, input));
+  },
+  async saveRelationshipAggregate(vaultPath: string, input: any): Promise<void> {
+    unwrap(await window.manuscriptAtlas.data.saveRelationshipAggregate(vaultPath, input));
+  },
   async listTrashItems(vaultPath: string): Promise<any[]> {
     return unwrap(await window.manuscriptAtlas.data.listTrashItems(vaultPath)).items;
   },

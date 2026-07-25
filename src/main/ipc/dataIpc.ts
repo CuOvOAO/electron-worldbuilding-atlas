@@ -3,20 +3,82 @@ import { randomUUID } from 'node:crypto';
 import { assetFileExists, assetUrlForId, resolveAssetPath } from '../assets/assetProtocol';
 import { openDatabase } from '../db/connection';
 import { runMigrations } from '../db/migrations';
-import { ensureVaultReady, worldDbPath } from '../vault/vaultService';
+import { ensureAuthorizedVaultReady, touchVaultUpdatedAt, worldDbPath } from '../vault/vaultService';
+import {
+  runImmediateTransaction,
+  saveCodexAggregate,
+  saveEventAggregate,
+  saveMapAggregate,
+  saveRelationshipAggregate,
+  saveTimelineAggregate
+} from '../data/aggregateSaveService';
 
 function withDb<T>(vaultPath: string, callback: (db: ReturnType<typeof openDatabase>['db']) => T): T {
-  ensureVaultReady(vaultPath);
+  ensureAuthorizedVaultReady(vaultPath);
   const { db } = openDatabase(worldDbPath(vaultPath));
   try {
     runMigrations(db);
-    return callback(db);
+    const before = Number((db.prepare('SELECT total_changes() AS count').get() as { count: number }).count);
+    const result = callback(db);
+    const after = Number((db.prepare('SELECT total_changes() AS count').get() as { count: number }).count);
+    if (after > before) touchVaultUpdatedAt(vaultPath);
+    return result;
   } finally {
     db.close();
   }
 }
 
 export function registerDataIpc(): void {
+  ipcMain.handle('data:saveCodexAggregate', (_event, vaultPath: string, input: Parameters<typeof saveCodexAggregate>[1]) => {
+    try {
+      withDb(vaultPath, (db) => runImmediateTransaction(db, () => saveCodexAggregate(db, input)));
+      return { ok: true };
+    } catch (error) {
+      console.error('保存词条失败', error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle('data:saveEventAggregate', (_event, vaultPath: string, input: Parameters<typeof saveEventAggregate>[1]) => {
+    try {
+      withDb(vaultPath, (db) => runImmediateTransaction(db, () => saveEventAggregate(db, input)));
+      return { ok: true };
+    } catch (error) {
+      console.error('保存事件失败', error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle('data:saveTimelineAggregate', (_event, vaultPath: string, input: Parameters<typeof saveTimelineAggregate>[1]) => {
+    try {
+      withDb(vaultPath, (db) => runImmediateTransaction(db, () => saveTimelineAggregate(db, input)));
+      return { ok: true };
+    } catch (error) {
+      console.error('保存时间线失败', error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle('data:saveMapAggregate', (_event, vaultPath: string, input: Parameters<typeof saveMapAggregate>[1]) => {
+    try {
+      withDb(vaultPath, (db) => runImmediateTransaction(db, () => saveMapAggregate(db, input)));
+      return { ok: true };
+    } catch (error) {
+      console.error('保存地图失败', error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle('data:saveRelationshipAggregate', (_event, vaultPath: string, input: Parameters<typeof saveRelationshipAggregate>[1]) => {
+    try {
+      withDb(vaultPath, (db) => runImmediateTransaction(db, () => saveRelationshipAggregate(db, input)));
+      return { ok: true };
+    } catch (error) {
+      console.error('保存关系失败', error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle('data:listTrashItems', (_event, vaultPath: string) => {
     try {
       return {
@@ -130,7 +192,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–é¦–é¡µæœ€è¿‘ç¼–è¾‘å¤±è´¥', error);
+      console.error('读取首页最近编辑失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -146,7 +208,7 @@ export function registerDataIpc(): void {
         results: withDb(vaultPath, (db) => globalSearch(db, keyword))
       };
     } catch (error) {
-      console.error('å…¨å±€æœç´¢å¤±è´¥', error);
+      console.error('全局搜索失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -185,7 +247,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–è§’è‰²åˆ—è¡¨å¤±è´¥', error);
+      console.error('读取角色列表失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -210,7 +272,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–è¯æ¡å¤±è´¥', error);
+      console.error('读取词条失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -242,7 +304,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–è§’è‰²ç‰ˆæœ¬å¤±è´¥', error);
+      console.error('读取角色版本失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -252,7 +314,7 @@ export function registerDataIpc(): void {
       const character = withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
         const id = randomUUID();
-        const name = input.name.trim() || 'æœªå‘½åè§’è‰²';
+        const name = input.name.trim() || '未命名角色';
         db.prepare('INSERT INTO characters (id, created_at, updated_at, name, summary) VALUES (?, ?, ?, ?, ?)').run(
           id,
           now,
@@ -266,8 +328,8 @@ export function registerDataIpc(): void {
           now,
           now,
           id,
-          'é»˜è®¤ç‰ˆæœ¬',
-          'è§’è‰²çš„åŸºç¡€è®¾å®šç‰ˆæœ¬ã€‚',
+          '默认版本',
+          '角色的基础设定版本。',
           null,
           1
         );
@@ -275,7 +337,7 @@ export function registerDataIpc(): void {
       });
       return { ok: true, character };
     } catch (error) {
-      console.error('åˆ›å»ºè§’è‰²å¤±è´¥', error);
+      console.error('创建角色失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -292,18 +354,18 @@ export function registerDataIpc(): void {
           WHERE id = ? AND deleted_at IS NULL
         `).get(input.id) as { avatarAssetId: string | null; fullBodyAssetId: string | null } | undefined;
         if (!existing) {
-          throw new Error('è§’è‰²ä¸å­˜åœ¨æˆ–å·²è¢«åˆ é™¤ã€‚');
+          throw new Error('角色不存在或已被删除。');
         }
-        const name = input.name.trim() || 'æœªå‘½åè§’è‰²';
+        const name = input.name.trim() || '未命名角色';
         const hasAvatarAssetId = Object.prototype.hasOwnProperty.call(input, 'avatarAssetId');
         const hasFullBodyAssetId = Object.prototype.hasOwnProperty.call(input, 'fullBodyAssetId');
         const avatarAssetId = hasAvatarAssetId ? input.avatarAssetId || null : existing.avatarAssetId;
         const fullBodyAssetId = hasFullBodyAssetId ? input.fullBodyAssetId || null : existing.fullBodyAssetId;
         if (avatarAssetId && !assetExists(db, avatarAssetId)) {
-          throw new Error('å¤´åƒç´ æä¸å­˜åœ¨æˆ–å·²è¢«åˆ é™¤ã€‚');
+          throw new Error('头像素材不存在或已被删除。');
         }
         if (fullBodyAssetId && !assetExists(db, fullBodyAssetId)) {
-          throw new Error('ç«‹ç»˜ç´ æä¸å­˜åœ¨æˆ–å·²è¢«åˆ é™¤ã€‚');
+          throw new Error('立绘素材不存在或已被删除。');
         }
         db.prepare('UPDATE characters SET name = ?, summary = ?, avatar_asset_id = ?, full_body_asset_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
           name,
@@ -317,7 +379,7 @@ export function registerDataIpc(): void {
       });
       return { ok: true, character };
     } catch (error) {
-      console.error('æ›´æ–°è§’è‰²å¤±è´¥', error);
+      console.error('更新角色失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -327,7 +389,7 @@ export function registerDataIpc(): void {
       const version = withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
         const id = randomUUID();
-        const name = input.name.trim() || 'æ–°å»ºç‰ˆæœ¬';
+        const name = input.name.trim() || '新建版本';
         db.prepare('INSERT INTO character_versions (id, created_at, updated_at, character_id, name, description, timeline_id, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
           id,
           now,
@@ -343,7 +405,7 @@ export function registerDataIpc(): void {
       });
       return { ok: true, version };
     } catch (error) {
-      console.error('åˆ›å»ºè§’è‰²ç‰ˆæœ¬å¤±è´¥', error);
+      console.error('创建角色版本失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -355,7 +417,7 @@ export function registerDataIpc(): void {
         version: withDb(vaultPath, (db) => {
           const now = new Date().toISOString();
           db.prepare('UPDATE character_versions SET name = ?, description = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
-            input.name.trim() || 'æœªå‘½åç‰ˆæœ¬',
+            input.name.trim() || '未命名版本',
             input.description,
             now,
             input.id
@@ -365,20 +427,20 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('æ›´æ–°è§’è‰²ç‰ˆæœ¬å¤±è´¥', error);
+      console.error('更新角色版本失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
   ipcMain.handle('data:deleteCharacterVersion', (_event, vaultPath: string, input: { id: string; characterId: string }) => {
-    const result = softDelete(vaultPath, 'character_versions', input.id, 'åˆ é™¤è§’è‰²ç‰ˆæœ¬å¤±è´¥');
+    const result = softDelete(vaultPath, 'character_versions', input.id, '删除角色版本失败');
     if (result.ok) {
       touchEntity(vaultPath, 'characters', input.characterId);
     }
     return result;
   });
 
-  ipcMain.handle('data:deleteCharacter', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'characters', id, 'åˆ é™¤è§’è‰²å¤±è´¥'));
+  ipcMain.handle('data:deleteCharacter', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'characters', id, '删除角色失败'));
 
   ipcMain.handle('data:listCodexItems', (_event, vaultPath: string) => {
     try {
@@ -394,7 +456,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–è¯æ¡åˆ—è¡¨å¤±è´¥', error);
+      console.error('读取词条列表失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -404,7 +466,7 @@ export function registerDataIpc(): void {
       const item = withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
         const id = randomUUID();
-        const title = input.title.trim() || 'æœªå‘½åè¯æ¡';
+        const title = input.title.trim() || '未命名词条';
         db.prepare('INSERT INTO codex_items (id, created_at, updated_at, title, summary, type, export_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
           id,
           now,
@@ -418,7 +480,7 @@ export function registerDataIpc(): void {
       });
       return { ok: true, item };
     } catch (error) {
-      console.error('åˆ›å»ºè¯æ¡å¤±è´¥', error);
+      console.error('创建词条失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -429,7 +491,7 @@ export function registerDataIpc(): void {
         ok: true,
         item: withDb(vaultPath, (db) => {
           const now = new Date().toISOString();
-          const title = input.title.trim() || 'æœªå‘½åè¯æ¡';
+          const title = input.title.trim() || '未命名词条';
           db.prepare('UPDATE codex_items SET title = ?, summary = ?, type = ?, export_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
             title,
             input.summary,
@@ -442,12 +504,12 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('æ›´æ–°è¯æ¡å¤±è´¥', error);
+      console.error('更新词条失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
-  ipcMain.handle('data:deleteCodexItem', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'codex_items', id, 'åˆ é™¤è¯æ¡å¤±è´¥'));
+  ipcMain.handle('data:deleteCodexItem', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'codex_items', id, '删除词条失败'));
 
   ipcMain.handle('data:listCodexAliases', (_event, vaultPath: string, codexItemId: string) => {
     try {
@@ -463,7 +525,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–è¯æ¡åˆ«åå¤±è´¥', error);
+      console.error('读取词条别名失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -481,7 +543,7 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('åˆ›å»ºè¯æ¡åˆ«åå¤±è´¥', error);
+      console.error('创建词条别名失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -498,13 +560,13 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('æ›´æ–°è¯æ¡åˆ«åå¤±è´¥', error);
+      console.error('更新词条别名失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
   ipcMain.handle('data:deleteCodexAlias', (_event, vaultPath: string, input: { id: string; codexItemId: string }) => {
-    const result = softDelete(vaultPath, 'codex_aliases', input.id, 'åˆ é™¤è¯æ¡åˆ«åå¤±è´¥');
+    const result = softDelete(vaultPath, 'codex_aliases', input.id, '删除词条别名失败');
     if (result.ok) {
       touchEntity(vaultPath, 'codex_items', input.codexItemId);
     }
@@ -526,7 +588,7 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–æ­£æ–‡æ®µè½å¤±è´¥', error);
+      console.error('读取正文段落失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -558,7 +620,7 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('åˆ›å»ºæ­£æ–‡æ®µè½å¤±è´¥', error);
+      console.error('创建正文段落失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -583,13 +645,13 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('æ›´æ–°æ­£æ–‡æ®µè½å¤±è´¥', error);
+      console.error('更新正文段落失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
   ipcMain.handle('data:deleteContentBlock', (_event, vaultPath: string, input: { id: string; ownerEntityType: string; ownerEntityId: string }) => {
-    const result = softDelete(vaultPath, 'content_blocks', input.id, 'åˆ é™¤æ­£æ–‡æ®µè½å¤±è´¥');
+    const result = softDelete(vaultPath, 'content_blocks', input.id, '删除正文段落失败');
     if (result.ok) {
       touchEntity(vaultPath, ownerTable(input.ownerEntityType), input.ownerEntityId);
     }
@@ -598,12 +660,12 @@ export function registerDataIpc(): void {
 
   ipcMain.handle('data:listLocations', (_event, vaultPath: string) => listRows(vaultPath, 'locations', 'name'));
   ipcMain.handle('data:createLocation', (_event, vaultPath: string, input: { name: string; type: string; summary: string; body: string; exportEnabled: number }) =>
-    createLocationLike(vaultPath, 'locations', ['name', 'type', 'summary', 'body', 'export_enabled'], [input.name.trim() || 'æœªå‘½ååœ°ç‚¹', input.type, input.summary, input.body, input.exportEnabled ? 1 : 0], 'åˆ›å»ºåœ°ç‚¹å¤±è´¥')
+    createLocationLike(vaultPath, 'locations', ['name', 'type', 'summary', 'body', 'export_enabled'], [input.name.trim() || '未命名地点', input.type, input.summary, input.body, input.exportEnabled ? 1 : 0], '创建地点失败')
   );
   ipcMain.handle('data:updateLocation', (_event, vaultPath: string, input: { id: string; name: string; type: string; summary: string; body: string; exportEnabled: number }) =>
     updateLocation(vaultPath, input)
   );
-  ipcMain.handle('data:deleteLocation', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'locations', id, 'åˆ é™¤åœ°ç‚¹å¤±è´¥'));
+  ipcMain.handle('data:deleteLocation', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'locations', id, '删除地点失败'));
 
   ipcMain.handle('data:listEvents', (_event, vaultPath: string) => {
     try {
@@ -622,22 +684,22 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–äº‹ä»¶åˆ—è¡¨å¤±è´¥', error);
+      console.error('读取事件列表失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
   ipcMain.handle('data:createEvent', (_event, vaultPath: string, input: Record<string, unknown>) => createEvent(vaultPath, input));
   ipcMain.handle('data:updateEvent', (_event, vaultPath: string, input: Record<string, unknown>) => updateEvent(vaultPath, input));
-  ipcMain.handle('data:deleteEvent', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'events', id, 'åˆ é™¤äº‹ä»¶å¤±è´¥'));
+  ipcMain.handle('data:deleteEvent', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'events', id, '删除事件失败'));
 
   ipcMain.handle('data:listManuscripts', (_event, vaultPath: string) => listRows(vaultPath, 'manuscripts', 'title'));
   ipcMain.handle('data:createManuscript', (_event, vaultPath: string, input: { title: string; body: string; manuscriptType: string; exportEnabled: number }) =>
-    createLocationLike(vaultPath, 'manuscripts', ['title', 'body', 'manuscript_type', 'export_enabled'], [input.title.trim() || 'æœªå‘½åæ‰‹ç¨¿', input.body, input.manuscriptType, input.exportEnabled ? 1 : 0], 'åˆ›å»ºæ‰‹ç¨¿å¤±è´¥')
+    createLocationLike(vaultPath, 'manuscripts', ['title', 'body', 'manuscript_type', 'export_enabled'], [input.title.trim() || '未命名手稿', input.body, input.manuscriptType, input.exportEnabled ? 1 : 0], '创建手稿失败')
   );
   ipcMain.handle('data:updateManuscript', (_event, vaultPath: string, input: { id: string; title: string; body: string; manuscriptType: string; exportEnabled: number }) =>
     updateManuscript(vaultPath, input)
   );
-  ipcMain.handle('data:deleteManuscript', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'manuscripts', id, 'åˆ é™¤æ‰‹ç¨¿å¤±è´¥'));
+  ipcMain.handle('data:deleteManuscript', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'manuscripts', id, '删除手稿失败'));
 
   ipcMain.handle('data:listTimelines', (_event, vaultPath: string) => {
     try {
@@ -654,13 +716,13 @@ export function registerDataIpc(): void {
         )
       };
     } catch (error) {
-      console.error('è¯»å–æ—¶é—´çº¿å¤±è´¥', error);
+      console.error('读取时间线失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
   ipcMain.handle('data:createTimeline', (_event, vaultPath: string, input: Record<string, unknown>) => createTimeline(vaultPath, input));
   ipcMain.handle('data:updateTimeline', (_event, vaultPath: string, input: Record<string, unknown>) => updateTimeline(vaultPath, input));
-  ipcMain.handle('data:deleteTimeline', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'timelines', id, 'åˆ é™¤æ—¶é—´çº¿å¤±è´¥'));
+  ipcMain.handle('data:deleteTimeline', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'timelines', id, '删除时间线失败'));
 
   ipcMain.handle('data:listEntityLinks', (_event, vaultPath: string, ownerType: string, ownerId: string) => {
     try {
@@ -687,7 +749,7 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('è¯»å–å…³è”å¤±è´¥', error);
+      console.error('读取关联失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -706,7 +768,7 @@ export function registerDataIpc(): void {
         ])
       };
     } catch (error) {
-      console.error('è¯»å–å…³è”ç›®æ ‡å¤±è´¥', error);
+      console.error('读取关联目标失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -717,7 +779,7 @@ export function registerDataIpc(): void {
         ok: true,
         link: withDb(vaultPath, (db) => {
           if (!entityExists(db, input.sourceEntityType, input.sourceEntityId) || !entityExists(db, input.targetEntityType, input.targetEntityId)) {
-            throw new Error('å…³è”ç›®æ ‡ä¸å­˜åœ¨ã€‚');
+            throw new Error('关联目标不存在。');
           }
           const now = new Date().toISOString();
           const id = randomUUID();
@@ -739,12 +801,12 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('åˆ›å»ºå…³è”å¤±è´¥', error);
+      console.error('创建关联失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
-  ipcMain.handle('data:deleteEntityLink', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'entity_links', id, 'åˆ é™¤å…³è”å¤±è´¥'));
+  ipcMain.handle('data:deleteEntityLink', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'entity_links', id, '删除关联失败'));
 
   ipcMain.handle('data:listRelationGraph', (_event, vaultPath: string) => {
     try {
@@ -812,7 +874,7 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('è¯»å–å…³ç³»ç½‘ç»œå¤±è´¥', error);
+      console.error('读取关系网络失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -826,19 +888,19 @@ export function registerDataIpc(): void {
           const targetId = String(input.targetCharacterVersionId || '');
           const timelineId = typeof input.timelineId === 'string' && input.timelineId ? input.timelineId : null;
           if (!sourceId || !targetId || sourceId === targetId) {
-            throw new Error('èµ·ç‚¹å’Œç»ˆç‚¹è§’è‰²ç‰ˆæœ¬ä¸èƒ½ç›¸åŒã€‚');
+            throw new Error('起点和终点角色版本不能相同。');
           }
           if (!entityExists(db, 'character_version', sourceId) || !entityExists(db, 'character_version', targetId)) {
-            throw new Error('è§’è‰²ç‰ˆæœ¬ä¸å­˜åœ¨ã€‚');
+            throw new Error('角色版本不存在。');
           }
           if (timelineId && !entityExists(db, 'timeline', timelineId)) {
-            throw new Error('æ—¶é—´çº¿ä¸å­˜åœ¨ã€‚');
+            throw new Error('时间线不存在。');
           }
           const duplicate = timelineId
             ? db.prepare(`SELECT id FROM relationships WHERE deleted_at IS NULL AND source_character_version_id = ? AND target_character_version_id = ? AND timeline_id = ?`).get(sourceId, targetId, timelineId)
             : db.prepare(`SELECT id FROM relationships WHERE deleted_at IS NULL AND source_character_version_id = ? AND target_character_version_id = ? AND timeline_id IS NULL`).get(sourceId, targetId);
           if (duplicate) {
-            throw new Error('åŒä¸€æ—¶é—´çº¿ä¸‹å·²å­˜åœ¨è¿™æ¡æ–¹å‘å…³ç³»ã€‚');
+            throw new Error('同一时间线下已存在这条方向关系。');
           }
           const now = new Date().toISOString();
           const id = randomUUID();
@@ -854,7 +916,7 @@ export function registerDataIpc(): void {
             now,
             now,
             id,
-            String(input.relationType || 'ç›¸å…³'),
+            String(input.relationType || '相关'),
             String(input.description || ''),
             nullableNumber(input.startSortIndex),
             nullableNumber(input.endSortIndex),
@@ -864,7 +926,7 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('åˆ›å»ºå…³ç³»å¤±è´¥', error);
+      console.error('创建关系失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -879,19 +941,19 @@ export function registerDataIpc(): void {
           const targetId = String(input.targetCharacterVersionId || '');
           const timelineId = typeof input.timelineId === 'string' && input.timelineId ? input.timelineId : null;
           if (!sourceId || !targetId || sourceId === targetId) {
-            throw new Error('èµ·ç‚¹å’Œç»ˆç‚¹è§’è‰²ç‰ˆæœ¬ä¸èƒ½ç›¸åŒã€‚');
+            throw new Error('起点和终点角色版本不能相同。');
           }
           if (!entityExists(db, 'character_version', sourceId) || !entityExists(db, 'character_version', targetId)) {
-            throw new Error('è§’è‰²ç‰ˆæœ¬ä¸å­˜åœ¨ã€‚');
+            throw new Error('角色版本不存在。');
           }
           if (timelineId && !entityExists(db, 'timeline', timelineId)) {
-            throw new Error('æ—¶é—´çº¿ä¸å­˜åœ¨ã€‚');
+            throw new Error('时间线不存在。');
           }
           const duplicate = timelineId
             ? db.prepare(`SELECT id FROM relationships WHERE deleted_at IS NULL AND id <> ? AND source_character_version_id = ? AND target_character_version_id = ? AND timeline_id = ?`).get(id, sourceId, targetId, timelineId)
             : db.prepare(`SELECT id FROM relationships WHERE deleted_at IS NULL AND id <> ? AND source_character_version_id = ? AND target_character_version_id = ? AND timeline_id IS NULL`).get(id, sourceId, targetId);
           if (duplicate) {
-            throw new Error('åŒä¸€æ—¶é—´çº¿ä¸‹å·²å­˜åœ¨è¿™æ¡æ–¹å‘å…³ç³»ã€‚');
+            throw new Error('同一时间线下已存在这条方向关系。');
           }
           const now = new Date().toISOString();
           const directionMode = input.directionMode === 'undirected' ? 'undirected' : 'directed';
@@ -902,12 +964,12 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('æ›´æ–°å…³ç³»å¤±è´¥', error);
+      console.error('更新关系失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
-  ipcMain.handle('data:deleteRelationship', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'relationships', id, 'åˆ é™¤å…³ç³»å¤±è´¥'));
+  ipcMain.handle('data:deleteRelationship', (_event, vaultPath: string, id: string) => softDelete(vaultPath, 'relationships', id, '删除关系失败'));
 
   ipcMain.handle('data:createRelationshipStage', (_event, vaultPath: string, input: Record<string, unknown>) => {
     try {
@@ -917,11 +979,11 @@ export function registerDataIpc(): void {
           const relationshipId = String(input.relationshipId || '');
           const relationship = db.prepare('SELECT id FROM relationships WHERE id = ? AND deleted_at IS NULL').get(relationshipId);
           if (!relationship) {
-            throw new Error('å…³ç³»ä¸å­˜åœ¨ã€‚');
+            throw new Error('关系不存在。');
           }
           const relatedEventId = typeof input.relatedEventId === 'string' && input.relatedEventId ? input.relatedEventId : null;
           if (relatedEventId && !entityExists(db, 'event', relatedEventId)) {
-            throw new Error('ç›¸å…³äº‹ä»¶ä¸å­˜åœ¨ã€‚');
+            throw new Error('相关事件不存在。');
           }
           const now = new Date().toISOString();
           const id = randomUUID();
@@ -932,18 +994,18 @@ export function registerDataIpc(): void {
             now,
             now,
             relationshipId,
-            String(input.relationType || 'ç›¸å…³'),
+            String(input.relationType || '相关'),
             String(input.description || ''),
             nullableNumber(input.startSortIndex),
             nullableNumber(input.endSortIndex),
             relatedEventId
           );
           db.prepare('UPDATE relationships SET updated_at = ? WHERE id = ?').run(now, relationshipId);
-          return { id, relationshipId, relationType: String(input.relationType || 'ç›¸å…³'), description: String(input.description || ''), startSortIndex: nullableNumber(input.startSortIndex), endSortIndex: nullableNumber(input.endSortIndex), relatedEventId, createdAt: now, updatedAt: now };
+          return { id, relationshipId, relationType: String(input.relationType || '相关'), description: String(input.description || ''), startSortIndex: nullableNumber(input.startSortIndex), endSortIndex: nullableNumber(input.endSortIndex), relatedEventId, createdAt: now, updatedAt: now };
         })
       };
     } catch (error) {
-      console.error('åˆ›å»ºå…³ç³»é˜¶æ®µå¤±è´¥', error);
+      console.error('创建关系阶段失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
@@ -957,13 +1019,13 @@ export function registerDataIpc(): void {
           const relationshipId = String(input.relationshipId || '');
           const relatedEventId = typeof input.relatedEventId === 'string' && input.relatedEventId ? input.relatedEventId : null;
           if (relatedEventId && !entityExists(db, 'event', relatedEventId)) {
-            throw new Error('ç›¸å…³äº‹ä»¶ä¸å­˜åœ¨ã€‚');
+            throw new Error('相关事件不存在。');
           }
           const now = new Date().toISOString();
           db.prepare(`UPDATE relationship_stages
             SET relation_type = ?, description = ?, start_sort_index = ?, end_sort_index = ?, related_event_id = ?, updated_at = ?
             WHERE id = ? AND relationship_id = ? AND deleted_at IS NULL`).run(
-            String(input.relationType || 'ç›¸å…³'),
+            String(input.relationType || '相关'),
             String(input.description || ''),
             nullableNumber(input.startSortIndex),
             nullableNumber(input.endSortIndex),
@@ -977,13 +1039,13 @@ export function registerDataIpc(): void {
         })
       };
     } catch (error) {
-      console.error('æ›´æ–°å…³ç³»é˜¶æ®µå¤±è´¥', error);
+      console.error('更新关系阶段失败', error);
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
   ipcMain.handle('data:deleteRelationshipStage', (_event, vaultPath: string, input: { id: string; relationshipId: string }) => {
-    const result = softDelete(vaultPath, 'relationship_stages', input.id, 'åˆ é™¤å…³ç³»é˜¶æ®µå¤±è´¥');
+    const result = softDelete(vaultPath, 'relationship_stages', input.id, '删除关系阶段失败');
     if (result.ok) {
       touchEntity(vaultPath, 'relationships', input.relationshipId);
     }
@@ -1499,7 +1561,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
       LIMIT 5
     `).all(like, like, like, like, like, like, like, like, keyword, keyword, like, like),
     'character_version',
-    'è§’è‰²ç‰ˆæœ¬',
+    '角色版本',
     (row) => ({ module: 'characters', characterId: row.characterId, characterVersionId: row.id })
   );
 
@@ -1510,7 +1572,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
         ci.title,
         '' as subtitle,
         CASE
-          WHEN COALESCE(ca.alias, '') LIKE ? COLLATE NOCASE THEN 'åˆ«åï¼š' || ca.alias
+          WHEN COALESCE(ca.alias, '') LIKE ? COLLATE NOCASE THEN '别名：' || ca.alias
           WHEN ci.summary LIKE ? COLLATE NOCASE THEN ci.summary
           WHEN COALESCE(cb.blockText, '') LIKE ? COLLATE NOCASE THEN cb.blockText
           ELSE COALESCE(NULLIF(ci.summary, ''), cb.blockText, ca.alias, '')
@@ -1537,7 +1599,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
       LIMIT 5
     `).all(like, like, like, like, like, like, like, keyword, like, like),
     'codex_item',
-    'è¯æ¡',
+    '词条',
     (row) => ({ module: 'codex', codexItemId: row.id })
   );
 
@@ -1547,22 +1609,22 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
         id,
         title,
         CASE
-          WHEN start_display_time <> '' AND end_display_time <> '' AND start_display_time <> end_display_time THEN start_display_time || ' â€” ' || end_display_time
+          WHEN start_display_time <> '' AND end_display_time <> '' AND start_display_time <> end_display_time THEN start_display_time || ' — ' || end_display_time
           WHEN start_display_time <> '' THEN start_display_time
           WHEN end_display_time <> '' THEN end_display_time
-          ELSE 'äº‹ä»¶'
+          ELSE '事件'
         END as subtitle,
         CASE
           WHEN body LIKE ? COLLATE NOCASE THEN body
           WHEN start_display_time LIKE ? COLLATE NOCASE OR end_display_time LIKE ? COLLATE NOCASE THEN
             CASE
-              WHEN start_display_time <> '' AND end_display_time <> '' AND start_display_time <> end_display_time THEN start_display_time || ' â€” ' || end_display_time
+              WHEN start_display_time <> '' AND end_display_time <> '' AND start_display_time <> end_display_time THEN start_display_time || ' — ' || end_display_time
               ELSE COALESCE(NULLIF(start_display_time, ''), end_display_time)
             END
           WHEN duration_note LIKE ? COLLATE NOCASE THEN duration_note
           WHEN start_display_time <> '' OR end_display_time <> '' THEN
             CASE
-              WHEN start_display_time <> '' AND end_display_time <> '' AND start_display_time <> end_display_time THEN start_display_time || ' â€” ' || end_display_time
+              WHEN start_display_time <> '' AND end_display_time <> '' AND start_display_time <> end_display_time THEN start_display_time || ' — ' || end_display_time
               ELSE COALESCE(NULLIF(start_display_time, ''), end_display_time)
             END
           WHEN body <> '' THEN body
@@ -1578,7 +1640,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
       LIMIT 5
     `).all(like, like, like, like, like, like, like, like, like, keyword, like),
     'event',
-    'äº‹ä»¶',
+    '事件',
     (row) => ({ module: 'events', eventId: row.id })
   );
 
@@ -1591,7 +1653,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
         CASE
           WHEN summary LIKE ? COLLATE NOCASE THEN summary
           WHEN body LIKE ? COLLATE NOCASE THEN body
-          WHEN type LIKE ? COLLATE NOCASE THEN 'ç±»åž‹ï¼š' || type
+          WHEN type LIKE ? COLLATE NOCASE THEN '类型：' || type
           ELSE COALESCE(NULLIF(summary, ''), body, '')
         END as snippet,
         updated_at as updatedAt
@@ -1603,7 +1665,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
       LIMIT 5
     `).all(like, like, like, like, like, like, like, keyword, like),
     'location',
-    'åœ°ç‚¹',
+    '地点',
     (row) => ({ module: 'locations', locationId: row.id })
   );
 
@@ -1615,7 +1677,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
         manuscript_type as subtitle,
         CASE
           WHEN body LIKE ? COLLATE NOCASE THEN body
-          WHEN manuscript_type LIKE ? COLLATE NOCASE THEN 'ç±»åž‹ï¼š' || manuscript_type
+          WHEN manuscript_type LIKE ? COLLATE NOCASE THEN '类型：' || manuscript_type
           ELSE body
         END as snippet,
         updated_at as updatedAt
@@ -1627,7 +1689,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
       LIMIT 5
     `).all(like, like, like, like, like, keyword, like),
     'manuscript',
-    'æ‰‹ç¨¿',
+    '手稿',
     (row) => ({ module: 'manuscripts', manuscriptId: row.id })
   );
 
@@ -1651,7 +1713,7 @@ function globalSearch(db: ReturnType<typeof openDatabase>['db'], keyword: string
       LIMIT 5
     `).all(like, like, like, like, like, keyword, like),
     'timeline',
-    'æ—¶é—´çº¿',
+    '时间线',
     (row) => ({ module: 'timeline', timelineId: row.id })
   );
 
@@ -1666,14 +1728,14 @@ function compactSnippet(value: string, keyword = ''): string {
     const contextSize = 28;
     const start = Math.max(0, hitIndex - contextSize);
     const end = Math.min(text.length, hitIndex + keyword.length + contextSize);
-    const prefix = start > 0 ? 'â€¦â€¦' : '';
-    const suffix = end < text.length ? 'â€¦â€¦' : '';
+    const prefix = start > 0 ? '……' : '';
+    const suffix = end < text.length ? '……' : '';
     return `${prefix}${text.slice(start, end)}${suffix}`;
   }
   if (text.length <= 60) {
     return text;
   }
-  return `${text.slice(0, 60)}â€¦â€¦`;
+  return `${text.slice(0, 60)}……`;
 }
 
 function touchOwner(db: ReturnType<typeof openDatabase>['db'], entityType: string, entityId: string, now: string): void {
@@ -1726,7 +1788,7 @@ function assetFileUrl(vaultPath: string, assetId: string, relativePath: string, 
     return '';
   }
   if (!assetFileExists(vaultPath, relativePath)) {
-    console.error('è§’è‰²å›¾ç‰‡ç´ ææ–‡ä»¶ç¼ºå¤±', { assetId, relativePath, resolvedPath: resolveAssetPath(vaultPath, relativePath) });
+    console.error('角色图片素材文件缺失', { assetId, relativePath, resolvedPath: resolveAssetPath(vaultPath, relativePath) });
     return '';
   }
   return assetUrlForId(vaultPath, assetId, relativePath, mimeType);
@@ -2292,7 +2354,10 @@ function deleteEntityReferences(db: ReturnType<typeof openDatabase>['db'], entit
 
 function softDelete(vaultPath: string, table: string, id: string, message: string): { ok: boolean; error?: string } {
   try {
-    withDb(vaultPath, (db) => db.prepare(`UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`).run(new Date().toISOString(), new Date().toISOString(), id));
+    withDb(vaultPath, (db) => assertDatabaseChange(
+      db.prepare(`UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`).run(new Date().toISOString(), new Date().toISOString(), id),
+      '目标资料不存在、已被删除或状态已经改变。'
+    ));
     return { ok: true };
   } catch (error) {
     console.error(message, error);
@@ -2317,7 +2382,7 @@ function listRows(vaultPath: string, table: string, titleColumn: string): { ok: 
       }))
     };
   } catch (error) {
-    console.error(`è¯»å– ${table} å¤±è´¥`, error);
+    console.error(`读取 ${table} 失败`, error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -2346,20 +2411,20 @@ function updateLocation(vaultPath: string, input: { id: string; name: string; ty
       ok: true,
       item: withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
-        db.prepare('UPDATE locations SET name = ?, type = ?, summary = ?, body = ?, export_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
-          input.name.trim() || 'æœªå‘½ååœ°ç‚¹',
+        assertDatabaseChange(db.prepare('UPDATE locations SET name = ?, type = ?, summary = ?, body = ?, export_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
+          input.name.trim() || '未命名地点',
           input.type,
           input.summary,
           input.body,
           input.exportEnabled ? 1 : 0,
           now,
           input.id
-        );
+        ), '地点不存在或已被删除。');
         return { ...input, updatedAt: now };
       })
     };
   } catch (error) {
-    console.error('æ›´æ–°åœ°ç‚¹å¤±è´¥', error);
+    console.error('更新地点失败', error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -2370,19 +2435,19 @@ function updateManuscript(vaultPath: string, input: { id: string; title: string;
       ok: true,
       item: withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
-        db.prepare('UPDATE manuscripts SET title = ?, body = ?, manuscript_type = ?, export_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
-          input.title.trim() || 'æœªå‘½åæ‰‹ç¨¿',
+        assertDatabaseChange(db.prepare('UPDATE manuscripts SET title = ?, body = ?, manuscript_type = ?, export_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(
+          input.title.trim() || '未命名手稿',
           input.body,
           input.manuscriptType,
           input.exportEnabled ? 1 : 0,
           now,
           input.id
-        );
+        ), '手稿不存在或已被删除。');
         return { ...input, updatedAt: now };
       })
     };
   } catch (error) {
-    console.error('æ›´æ–°æ‰‹ç¨¿å¤±è´¥', error);
+    console.error('更新手稿失败', error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -2394,7 +2459,7 @@ function createEvent(vaultPath: string, input: Record<string, unknown>) {
       item: withDb(vaultPath, (db) => {
         const timelineId = typeof input.timelineId === 'string' && input.timelineId ? input.timelineId : null;
         if (timelineId && !entityExists(db, 'timeline', timelineId)) {
-          throw new Error('æ—¶é—´çº¿ä¸å­˜åœ¨ã€‚');
+          throw new Error('时间线不存在。');
         }
         const now = new Date().toISOString();
         const id = randomUUID();
@@ -2404,7 +2469,7 @@ function createEvent(vaultPath: string, input: Record<string, unknown>) {
           id,
           now,
           now,
-          String(input.title || 'æœªå‘½åäº‹ä»¶'),
+          String(input.title || '未命名事件'),
           timelineId,
           String(input.startDisplayTime || ''),
           String(input.endDisplayTime || ''),
@@ -2418,7 +2483,7 @@ function createEvent(vaultPath: string, input: Record<string, unknown>) {
       })
     };
   } catch (error) {
-    console.error('åˆ›å»ºäº‹ä»¶å¤±è´¥', error);
+    console.error('创建事件失败', error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -2430,13 +2495,13 @@ function updateEvent(vaultPath: string, input: Record<string, unknown>) {
       item: withDb(vaultPath, (db) => {
         const timelineId = typeof input.timelineId === 'string' && input.timelineId ? input.timelineId : null;
         if (timelineId && !entityExists(db, 'timeline', timelineId)) {
-          throw new Error('æ—¶é—´çº¿ä¸å­˜åœ¨ã€‚');
+          throw new Error('时间线不存在。');
         }
         const now = new Date().toISOString();
-        db.prepare(`UPDATE events
+        assertDatabaseChange(db.prepare(`UPDATE events
           SET title = ?, timeline_id = ?, start_display_time = ?, end_display_time = ?, duration_note = ?, start_sort_index = ?, end_sort_index = ?, body = ?, export_enabled = ?, updated_at = ?
           WHERE id = ? AND deleted_at IS NULL`).run(
-          String(input.title || 'æœªå‘½åäº‹ä»¶'),
+          String(input.title || '未命名事件'),
           timelineId,
           String(input.startDisplayTime || ''),
           String(input.endDisplayTime || ''),
@@ -2447,12 +2512,12 @@ function updateEvent(vaultPath: string, input: Record<string, unknown>) {
           input.exportEnabled ? 1 : 0,
           now,
           String(input.id)
-        );
+        ), '事件不存在或已被删除。');
         return { ...input, updatedAt: now };
       })
     };
   } catch (error) {
-    console.error('æ›´æ–°äº‹ä»¶å¤±è´¥', error);
+    console.error('更新事件失败', error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -2470,7 +2535,7 @@ function createTimeline(vaultPath: string, input: Record<string, unknown>) {
           id,
           now,
           now,
-          String(input.name || 'æœªå‘½åæ—¶é—´çº¿'),
+          String(input.name || '未命名时间线'),
           String(input.description || ''),
           typeof input.parentTimelineId === 'string' && input.parentTimelineId ? input.parentTimelineId : null,
           typeof input.branchEventId === 'string' && input.branchEventId ? input.branchEventId : null,
@@ -2481,7 +2546,7 @@ function createTimeline(vaultPath: string, input: Record<string, unknown>) {
       })
     };
   } catch (error) {
-    console.error('åˆ›å»ºæ—¶é—´çº¿å¤±è´¥', error);
+    console.error('创建时间线失败', error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -2492,10 +2557,10 @@ function updateTimeline(vaultPath: string, input: Record<string, unknown>) {
       ok: true,
       item: withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
-        db.prepare(`UPDATE timelines
+        assertDatabaseChange(db.prepare(`UPDATE timelines
           SET name = ?, description = ?, parent_timeline_id = ?, branch_event_id = ?, branch_note = ?, sort_order = ?, updated_at = ?
           WHERE id = ? AND deleted_at IS NULL`).run(
-          String(input.name || 'æœªå‘½åæ—¶é—´çº¿'),
+          String(input.name || '未命名时间线'),
           String(input.description || ''),
           typeof input.parentTimelineId === 'string' && input.parentTimelineId ? input.parentTimelineId : null,
           typeof input.branchEventId === 'string' && input.branchEventId ? input.branchEventId : null,
@@ -2503,12 +2568,16 @@ function updateTimeline(vaultPath: string, input: Record<string, unknown>) {
           Number(input.sortOrder || 0),
           now,
           String(input.id)
-        );
+        ), '时间线不存在或已被删除。');
         return { ...input, updatedAt: now };
       })
     };
   } catch (error) {
-    console.error('æ›´æ–°æ—¶é—´çº¿å¤±è´¥', error);
+    console.error('更新时间线失败', error);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+function assertDatabaseChange(result: { changes: number | bigint }, message: string): void {
+  if (Number(result.changes) < 1) throw new Error(message);
 }

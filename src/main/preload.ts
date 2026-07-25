@@ -1,8 +1,18 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { APP_VERSION } from '../shared/appVersion';
 
 contextBridge.exposeInMainWorld('manuscriptAtlas', {
-  version: '0.0.1',
+  version: APP_VERSION,
   platform: process.platform,
+  lifecycle: {
+    setUnsavedChanges: (value: boolean) => ipcRenderer.send('lifecycle:setUnsavedChanges', value),
+    confirmClose: () => ipcRenderer.send('lifecycle:confirmClose'),
+    onCloseRequested: (callback: () => void) => {
+      const listener = (): void => callback();
+      ipcRenderer.on('lifecycle:closeRequested', listener);
+      return () => ipcRenderer.removeListener('lifecycle:closeRequested', listener);
+    }
+  },
   vault: {
     listRecent: () => ipcRenderer.invoke('vault:listRecent'),
     chooseDirectory: () => ipcRenderer.invoke('vault:chooseDirectory'),
@@ -95,6 +105,11 @@ contextBridge.exposeInMainWorld('manuscriptAtlas', {
     listMapLayers: (vaultPath: string, mapId: string) => ipcRenderer.invoke('data:listMapLayers', vaultPath, mapId),
     saveMapLayers: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveMapLayers', vaultPath, input),
     getMapObjects: (vaultPath: string, mapId: string) => ipcRenderer.invoke('data:getMapObjects', vaultPath, mapId),
-    saveMapObjects: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveMapObjects', vaultPath, input)
+    saveMapObjects: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveMapObjects', vaultPath, input),
+    saveCodexAggregate: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveCodexAggregate', vaultPath, input),
+    saveEventAggregate: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveEventAggregate', vaultPath, input),
+    saveTimelineAggregate: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveTimelineAggregate', vaultPath, input),
+    saveMapAggregate: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveMapAggregate', vaultPath, input),
+    saveRelationshipAggregate: (vaultPath: string, input: unknown) => ipcRenderer.invoke('data:saveRelationshipAggregate', vaultPath, input)
   }
 });

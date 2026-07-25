@@ -600,31 +600,20 @@ export function LocationMapView({ vault, targetMapId, targetMapObjectId, onNavig
     }
     try {
       setError('');
-      const updated = await dataClient.updateMap(vault.path, {
+      await dataClient.saveMapAggregate(vault.path, {
+        map: {
         id: activeMap.id,
         title: draft.title,
         description: draft.description,
         backgroundAssetId: draft.backgroundAssetId,
         canvasWidth: draft.canvasWidth,
         canvasHeight: draft.canvasHeight
-      });
-      await dataClient.saveMapLayers(vault.path, {
-        mapId: activeMap.id,
+        },
         layers: draft.layers.map((layer, index) => ({ ...layer, sortOrder: index })),
-        deferDeletes: true
-      });
-      const savedObjects = await dataClient.saveMapObjects(vault.path, {
-        mapId: activeMap.id,
         objects: draft.objects.map(serializeMapObject)
       });
-      const savedLayers = await dataClient.saveMapLayers(vault.path, {
-        mapId: activeMap.id,
-        layers: draft.layers.map((layer, index) => ({ ...layer, sortOrder: index }))
-      });
-      const nextDraft = toDraft(updated, savedObjects as any[], savedLayers as any[]);
-      await refreshMaps(updated.id);
-      replaceDraft(nextDraft);
-      setSavedDraft(nextDraft);
+      await refreshMaps(activeMap.id);
+      await loadMapDraft(activeMap.id);
       resetHistory();
       setEditing(false);
       setTool('select');

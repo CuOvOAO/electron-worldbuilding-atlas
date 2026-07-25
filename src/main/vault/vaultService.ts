@@ -1,9 +1,11 @@
 import { app } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { openDatabase } from '../db/connection';
 import { runMigrations, seedInitialData } from '../db/migrations';
+import { APP_VERSION } from '../../shared/appVersion';
+import { assertVaultPathAuthorized, authorizeVaultPath } from '../security/capabilities';
 
 export interface VaultProject {
   id: string;
@@ -23,8 +25,6 @@ interface ProjectJson {
   updatedAt: string;
   appVersion: string;
 }
-
-const APP_VERSION = '0.1.0';
 
 function recentVaultsPath(): string {
   return join(app.getPath('userData'), 'recent-vaults.json');
@@ -77,6 +77,19 @@ export function readProject(vaultPath: string): VaultProject {
   return { ...parsed, path: vaultPath };
 }
 
+export function touchVaultUpdatedAt(vaultPath: string): void {
+  const project = readProject(vaultPath);
+  const updatedAt = new Date().toISOString();
+  writeJsonAtomically(projectJsonPath(vaultPath), {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    createdAt: project.createdAt,
+    updatedAt,
+    appVersion: project.appVersion
+  });
+}
+
 export function ensureVaultReady(vaultPath: string): VaultProject {
   const project = readProject(vaultPath);
   const dbPath = worldDbPath(vaultPath);
@@ -93,6 +106,11 @@ export function ensureVaultReady(vaultPath: string): VaultProject {
   }
 
   return project;
+}
+
+export function ensureAuthorizedVaultReady(vaultPath: string): VaultProject {
+  assertVaultPathAuthorized(vaultPath);
+  return ensureVaultReady(vaultPath);
 }
 
 export function createVault(parentDir: string, name: string, description: string): VaultProject {
@@ -121,7 +139,7 @@ export function createVault(parentDir: string, name: string, description: string
   mkdirSync(join(vaultPath, 'assets', 'drafts'), { recursive: true });
   mkdirSync(join(vaultPath, 'exports'), { recursive: true });
   mkdirSync(join(vaultPath, 'backups'), { recursive: true });
-  writeFileSync(projectJsonPath(vaultPath), JSON.stringify(project, null, 2), 'utf8');
+  writeJsonAtomically(projectJsonPath(vaultPath), project);
 
   const { db } = openDatabase(worldDbPath(vaultPath));
   try {
@@ -144,7 +162,7 @@ export function readRecentVaults(): VaultProject[] {
 
   try {
     const rows = JSON.parse(readFileSync(filePath, 'utf8')) as Array<{ path: string }>;
-    return rows
+    const vaults = rows
       .filter((row) => row && typeof row.path === 'string')
       .map((row) => {
         try {
@@ -154,6 +172,8 @@ export function readRecentVaults(): VaultProject[] {
         }
       })
       .filter((row): row is VaultProject => row !== null);
+    vaults.forEach((vault) => authorizeVaultPath(vault.path));
+    return vaults;
   } catch (error) {
     console.error('读取最近存档失败', error);
     return [];
@@ -161,7 +181,29 @@ export function readRecentVaults(): VaultProject[] {
 }
 
 export function addRecentVault(vault: VaultProject): void {
+  authorizeVaultPath(vault.path);
   const existing = readRecentVaults().filter((item) => item.path !== vault.path);
   const next = [vault, ...existing].slice(0, 12).map((item) => ({ path: item.path }));
-  writeFileSync(recentVaultsPath(), JSON.stringify(next, null, 2), 'utf8');
+  writeJsonAtomically(recentVaultsPath(), next);
+}
+
+function writeJsonAtomically(filePath: string, value: unknown): void {
+  const tempPath = `${filePath}.${randomUUID()}.tmp`;
+  const rollbackPath = `${filePath}.${randomUUID()}.previous`;
+  writeFileSync(tempPath, JSON.stringify(value, null, 2), 'utf8');
+  if (!existsSync(filePath)) {
+    renameSync(tempPath, filePath);
+    return;
+  }
+  renameSync(filePath, rollbackPath);
+  try {
+    renameSync(tempPath, filePath);
+    rmSync(rollbackPath, { force: true });
+  } catch (error) {
+    if (existsSync(filePath)) rmSync(filePath, { force: true });
+    renameSync(rollbackPath, filePath);
+    throw error;
+  } finally {
+    if (existsSync(tempPath)) rmSync(tempPath, { force: true });
+  }
 }

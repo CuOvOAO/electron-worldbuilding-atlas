@@ -304,7 +304,7 @@ export function CharacterDetailView({ vault, character, initialVersionId, onBack
           onImport={() => importIntoSlot(assetPickerSlot)}
           onDelete={async (asset) => {
             const message = asset.usedCount > 0
-              ? '该图片正在被角色使用，删除后相关位置会恢复占位。是否继续？'
+              ? '该图片正在被角色或地图使用，删除后相关位置会恢复占位。是否继续？'
               : `确定要删除“${asset.originalName}”吗？`;
             if (!await confirmDanger(message)) return;
             await assetClient.deleteAsset(vault.path, asset.id);

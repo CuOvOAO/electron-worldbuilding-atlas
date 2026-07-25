@@ -329,19 +329,7 @@ export function CharacterRelationView({ vault, onNavigate }: CharacterRelationVi
         setError('关系创建失败：起点和终点不能是同一个角色版本。');
         return;
       }
-      if (form.id) {
-        await dataClient.updateRelationship(vault.path, form);
-        await Promise.all(removedStageIds.map((id) => dataClient.deleteRelationshipStage(vault.path, { id, relationshipId: form.id })));
-        await Promise.all(
-          stageDrafts.map((stage) =>
-            stage.id
-              ? dataClient.updateRelationshipStage(vault.path, { ...stage, relationshipId: form.id })
-              : dataClient.createRelationshipStage(vault.path, { ...stage, relationshipId: form.id })
-          )
-        );
-      } else {
-        await dataClient.createRelationship(vault.path, form);
-      }
+      await dataClient.saveRelationshipAggregate(vault.path, { relationship: form, stages: stageDrafts });
       setForm(null);
       setPopover(null);
       await load(selectedTimelineId);

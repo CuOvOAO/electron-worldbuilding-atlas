@@ -5,11 +5,13 @@ import { basename, extname, join } from 'node:path';
 import { assetFileExists, assetRelativePath, assetUrlForId, resolveAssetPath } from '../assets/assetProtocol';
 import { openDatabase } from '../db/connection';
 import { runMigrations } from '../db/migrations';
-import { ensureVaultReady, worldDbPath } from '../vault/vaultService';
+import { ensureAuthorizedVaultReady, touchVaultUpdatedAt, worldDbPath } from '../vault/vaultService';
 
 type Db = ReturnType<typeof openDatabase>['db'];
 
 const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+const maxImportedImageBytes = 50 * 1024 * 1024;
+const maxPngBase64Length = Math.ceil(maxImportedImageBytes / 3) * 4;
 const mimeTypes: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -19,11 +21,15 @@ const mimeTypes: Record<string, string> = {
 };
 
 function withDb<T>(vaultPath: string, callback: (db: Db) => T): T {
-  ensureVaultReady(vaultPath);
+  ensureAuthorizedVaultReady(vaultPath);
   const { db } = openDatabase(worldDbPath(vaultPath));
   try {
     runMigrations(db);
-    return callback(db);
+    const before = Number((db.prepare('SELECT total_changes() AS count').get() as { count: number }).count);
+    const result = callback(db);
+    const after = Number((db.prepare('SELECT total_changes() AS count').get() as { count: number }).count);
+    if (after > before) touchVaultUpdatedAt(vaultPath);
+    return result;
   } finally {
     db.close();
   }
@@ -32,7 +38,7 @@ function withDb<T>(vaultPath: string, callback: (db: Db) => T): T {
 export function registerAssetIpc(): void {
   ipcMain.handle('asset:importImage', async (event, vaultPath: string) => {
     try {
-      ensureVaultReady(vaultPath);
+      ensureAuthorizedVaultReady(vaultPath);
       const window = BrowserWindow.fromWebContents(event.sender);
       const result = window
         ? await dialog.showOpenDialog(window, imageDialogOptions())
@@ -43,6 +49,9 @@ export function registerAssetIpc(): void {
       }
 
       const sourcePath = result.filePaths[0];
+      if (statSync(sourcePath).size > maxImportedImageBytes) {
+        throw new Error('图片文件超过 50 MB，无法导入。');
+      }
       const ext = extname(sourcePath).toLowerCase();
       if (!imageExtensions.has(ext)) {
         return { ok: false, error: '请选择 PNG、JPG、WEBP 或 GIF 图片。' };
@@ -93,9 +102,17 @@ export function registerAssetIpc(): void {
     try {
       withDb(vaultPath, (db) => {
         const now = new Date().toISOString();
-        db.prepare('UPDATE assets SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(now, now, assetId);
-        db.prepare('UPDATE characters SET avatar_asset_id = NULL, updated_at = ? WHERE avatar_asset_id = ? AND deleted_at IS NULL').run(now, assetId);
-        db.prepare('UPDATE characters SET full_body_asset_id = NULL, updated_at = ? WHERE full_body_asset_id = ? AND deleted_at IS NULL').run(now, assetId);
+        db.exec('BEGIN IMMEDIATE;');
+        try {
+          db.prepare('UPDATE characters SET avatar_asset_id = NULL, updated_at = ? WHERE avatar_asset_id = ? AND deleted_at IS NULL').run(now, assetId);
+          db.prepare('UPDATE characters SET full_body_asset_id = NULL, updated_at = ? WHERE full_body_asset_id = ? AND deleted_at IS NULL').run(now, assetId);
+          db.prepare('UPDATE maps SET background_asset_id = NULL, updated_at = ? WHERE background_asset_id = ? AND deleted_at IS NULL').run(now, assetId);
+          db.prepare('UPDATE assets SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').run(now, now, assetId);
+          db.exec('COMMIT;');
+        } catch (error) {
+          db.exec('ROLLBACK;');
+          throw error;
+        }
       });
       return { ok: true };
     } catch (error) {
@@ -106,6 +123,7 @@ export function registerAssetIpc(): void {
 
   ipcMain.handle('asset:getUrl', (_event, vaultPath: string, relativePath: string) => {
     try {
+      ensureAuthorizedVaultReady(vaultPath);
       return { ok: true, url: assetUrl(vaultPath, relativePath, relativePath) };
     } catch (error) {
       console.error('生成素材路径失败', error);
@@ -115,10 +133,13 @@ export function registerAssetIpc(): void {
 
   ipcMain.handle('asset:saveCroppedImage', (_event, vaultPath: string, input: { dataUrl: string; slot: 'avatar' | 'fullBody'; originalName?: string }) => {
     try {
-      ensureVaultReady(vaultPath);
+      ensureAuthorizedVaultReady(vaultPath);
       const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(input.dataUrl || ''));
       if (!match) {
         throw new Error('裁剪结果格式无效。');
+      }
+      if (match[1].length > maxPngBase64Length) {
+        throw new Error('裁剪结果超过 50 MB，无法保存。');
       }
       const imagesDir = join(vaultPath, 'assets', 'images');
       mkdirSync(imagesDir, { recursive: true });
@@ -157,6 +178,10 @@ function listImageAssets(db: Db, vaultPath: string): unknown[] {
         SELECT COUNT(*)
         FROM characters c
         WHERE c.deleted_at IS NULL AND (c.avatar_asset_id = a.id OR c.full_body_asset_id = a.id)
+      ) + (
+        SELECT COUNT(*)
+        FROM maps m
+        WHERE m.deleted_at IS NULL AND m.background_asset_id = a.id
       ) as used_count
     FROM assets a
     WHERE a.deleted_at IS NULL AND a.asset_type = 'image'

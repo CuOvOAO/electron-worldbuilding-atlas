@@ -150,14 +150,11 @@ export function TimelinePage({ vault, target, onNavigate }: TimelinePageProps): 
   }
 
   async function save(): Promise<void> {
-    await dataClient.updateTimeline(vault.path, draft);
+    await dataClient.saveTimelineAggregate(vault.path, {
+      item: draft,
+      eventOrderIds: orderChanged ? eventOrderDraft : timelineEvents.map((event) => event.id)
+    });
     if (orderChanged) {
-      const ordered = eventOrderDraft.map((id) => timelineEvents.find((event) => event.id === id)).filter(Boolean);
-      await Promise.all(ordered.map((event, index) => dataClient.updateEvent(vault.path, {
-        ...event,
-        startSortIndex: (index + 1) * 100,
-        endSortIndex: event.endSortIndex
-      })));
       setSortMessage('排序已更新');
     }
     setSaved(draft);

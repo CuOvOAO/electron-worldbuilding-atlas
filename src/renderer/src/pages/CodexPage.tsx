@@ -112,10 +112,12 @@ export function CodexPage({ vault, target, onNavigate }: CodexPageProps): JSX.El
 
   async function save(): Promise<void> {
     try {
-      await dataClient.updateCodexItem(vault.path, draft.item);
-      await syncAliases();
-      await syncBlocks();
-      await syncLinks();
+      await dataClient.saveCodexAggregate(vault.path, {
+        item: draft.item,
+        aliases: draft.aliases,
+        blocks: draft.blocks,
+        links: draft.links
+      });
       setSaved(draft);
       setEditing(false);
       await loadItems(draft.item.id);
@@ -143,62 +145,6 @@ export function CodexPage({ vault, target, onNavigate }: CodexPageProps): JSX.El
     if (!newAlias.trim() || !activeId) return;
     setDraft((current) => ({ ...current, aliases: [...current.aliases, { id: `draft-${Date.now()}`, codexItemId: activeId, alias: newAlias.trim() }] }), { checkpoint: true });
     setNewAlias('');
-  }
-
-  async function syncAliases(): Promise<void> {
-    const savedIds = new Set(saved.aliases.map((alias) => alias.id));
-    const draftIds = new Set(draft.aliases.filter((alias) => !String(alias.id).startsWith('draft-')).map((alias) => alias.id));
-    for (const alias of draft.aliases) {
-      if (String(alias.id).startsWith('draft-')) {
-        await dataClient.createCodexAlias(vault.path, { codexItemId: activeId, alias: alias.alias });
-      } else {
-        await dataClient.updateCodexAlias(vault.path, alias);
-      }
-    }
-    for (const alias of saved.aliases) {
-      if (savedIds.has(alias.id) && !draftIds.has(alias.id)) {
-        await dataClient.deleteCodexAlias(vault.path, { id: alias.id, codexItemId: activeId });
-      }
-    }
-  }
-
-  async function syncBlocks(): Promise<void> {
-    const draftIds = new Set(draft.blocks.filter((block) => !String(block.id).startsWith('draft-')).map((block) => block.id));
-    for (const [index, block] of draft.blocks.entries()) {
-      const payload = {
-        ownerEntityType: 'codex_item',
-        ownerEntityId: activeId,
-        title: block.title,
-        contentJson: block.contentJson,
-        sortOrder: index,
-        collapsed: block.collapsed ?? 0,
-        exportEnabled: block.exportEnabled ?? 1
-      };
-      if (String(block.id).startsWith('draft-')) {
-        await dataClient.createContentBlock(vault.path, { ...payload, blockType: 'section' });
-      } else {
-        await dataClient.updateContentBlock(vault.path, { id: block.id, ...payload });
-      }
-    }
-    for (const block of saved.blocks) {
-      if (!draftIds.has(block.id)) {
-        await dataClient.deleteContentBlock(vault.path, { id: block.id, ownerEntityType: 'codex_item', ownerEntityId: activeId });
-      }
-    }
-  }
-
-  async function syncLinks(): Promise<void> {
-    const draftIds = new Set(draft.links.filter((link) => !String(link.id).startsWith('draft-')).map((link) => link.id));
-    for (const link of draft.links) {
-      if (String(link.id).startsWith('draft-')) {
-        await dataClient.createEntityLink(vault.path, link);
-      }
-    }
-    for (const link of saved.links) {
-      if (!draftIds.has(link.id)) {
-        await dataClient.deleteEntityLink(vault.path, link.id);
-      }
-    }
   }
 
   function addBlock(): void {
