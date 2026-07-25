@@ -1,54 +1,35 @@
 # 手稿星图 Manuscript Atlas
 
-V0 可点击骨架原型。目标是验证本地桌面应用的信息架构、模块切换和视觉方向，不实现真实数据库、地图编辑、关系网算法或导出业务。
+手稿星图是一款本地优先的 Electron 世界观资料管理工具。每个存档由 `project.json`、SQLite `world.db` 与本地 `assets/` 组成，支持角色、词条、事件、地点、时间线、关系网、地图、回收站、Markdown/PNG 导出，以及完整备份和恢复。
 
-## 运行
+## 开发命令
 
-```bash
+```powershell
 npm.cmd install
 npm.cmd run dev
-```
-
-如果使用 PowerShell 时 `npm` 被执行策略拦截，请使用 `npm.cmd`。
-
-## 构建与目录包
-
-```bash
+npm.cmd test
 npm.cmd run build
 npm.cmd run package
 ```
 
-`build` 会输出到 `out/`，`package` 会生成 Windows 目录包到 `release/win-unpacked/`。
+- `test`：运行服务层与资料安全回归测试。
+- `build`：执行 TypeScript 检查并构建主进程、preload 和 renderer。
+- `package`：生成 Windows 目录包到 `release/win-unpacked/`。
 
-## V0 页面
+## 本地资料边界
 
-- 存档选择页
-- 存档内部主工作区
-- 首页
-- 角色
-- 词条
-- 事件
-- 地点
-- 时间线
-- 关系网
-- 地图
-- 草稿箱
-- 导出
-- 设置
+- 应用不依赖账号、云同步或远程 AI 服务。
+- 活动存档使用 SQLite WAL；完整性检查与备份会先取得一致性数据库状态。
+- 完整备份是明文 ZIP，持有备份文件即能读取其中的世界观资料，请按敏感文件保管。
+- 恢复始终创建新存档，不覆盖来源存档。
 
-## Mock 数据
+## 主要目录
 
-所有存档、最近编辑、角色、词条、事件、地点和草稿数据都来自 `src/renderer/src/mock/data.ts`。当前按钮只负责静态展示和页面切换，不创建文件、不写数据库、不保存状态。
+- `src/main/`：Electron 主进程、SQLite、IPC、素材、备份恢复与完整性检查。
+- `src/renderer/`：React 界面与编辑工作流。
+- `tests/main/`：数据库安全、备份替换、关闭保护与事务保存测试。
+- `docs/`：版本审计与验收资料。
 
-## 预留位置
+## 发布提醒
 
-- SQLite：`src/main/database.ts`
-- Cytoscape.js：`src/renderer/src/pages/RelationGraphPage.tsx`
-- Konva.js：`src/renderer/src/pages/MapEditorPage.tsx`
-- Markdown 编辑器：`src/renderer/src/pages/DraftPage.tsx`
-
-## 已知依赖风险
-
-`npm audit` 当前报告 Electron 与 Vite/esbuild 链路存在 high severity advisories。`npm audit fix --force` 会引入破坏性版本变更，V0 未自动执行。正式开发前建议单独做依赖升级验证，并锁定可通过安全审计的 Electron / electron-vite / Vite 组合。
-
-`electron-builder` 还提示当前使用默认 Electron 图标，`package.json` 未配置 author。正式发布前需要补应用图标、签名、发布配置和元数据。
+正式发布前仍需配置应用图标、author、Windows 签名证书、发布通道与升级策略。
