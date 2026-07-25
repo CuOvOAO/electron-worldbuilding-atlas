@@ -3,7 +3,7 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { openDatabase } from '../db/connection';
 import { runMigrations } from '../db/migrations';
-import { ensureVaultReady, worldDbPath } from '../vault/vaultService';
+import { ensureAuthorizedVaultReady, worldDbPath } from '../vault/vaultService';
 
 interface ExportOptions {
   selectedCharacterIds: string[];
@@ -15,9 +15,13 @@ interface ExportOptions {
 }
 
 type Db = ReturnType<typeof openDatabase>['db'];
+const maxPngBytes = 50 * 1024 * 1024;
+const maxPngBase64Length = Math.ceil(maxPngBytes / 3) * 4;
+const maxBatchPngCount = 100;
+const maxBatchPngBase64Length = maxPngBase64Length * 5;
 
 function withDb<T>(vaultPath: string, callback: (db: Db) => T): T {
-  ensureVaultReady(vaultPath);
+  ensureAuthorizedVaultReady(vaultPath);
   const { db } = openDatabase(worldDbPath(vaultPath));
   try {
     runMigrations(db);
@@ -43,7 +47,7 @@ export function registerExportIpc(): void {
         return { ok: false, error: '请选择要导出的内容。' };
       }
 
-      const project = ensureVaultReady(vaultPath);
+      const project = ensureAuthorizedVaultReady(vaultPath);
       const defaultPath = join(
         vaultPath,
         'exports',
@@ -77,10 +81,13 @@ export function registerExportIpc(): void {
 
   ipcMain.handle('export:mapPng', async (event, vaultPath: string, input: { title?: string; dataUrl?: string }) => {
     try {
-      ensureVaultReady(vaultPath);
+      ensureAuthorizedVaultReady(vaultPath);
       const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(input.dataUrl || ''));
       if (!match) {
         return { ok: false, error: 'PNG 导出数据无效。' };
+      }
+      if (match[1].length > maxPngBase64Length) {
+        return { ok: false, error: 'PNG 导出数据超过 50 MB，已拒绝。' };
       }
 
       const title = safeFileName(String(input.title || '').trim() || '未命名地图');
@@ -107,9 +114,12 @@ export function registerExportIpc(): void {
 
   ipcMain.handle('export:mapPngBatch', async (event, vaultPath: string, input: { items?: Array<{ title?: string; dataUrl?: string }> }) => {
     try {
-      ensureVaultReady(vaultPath);
+      ensureAuthorizedVaultReady(vaultPath);
       const items = Array.isArray(input.items) ? input.items : [];
       if (items.length === 0) return { ok: false, error: '没有可导出的地图 PNG。' };
+      if (items.length > maxBatchPngCount) return { ok: false, error: `单次最多导出 ${maxBatchPngCount} 张地图 PNG。` };
+      const totalBase64Length = items.reduce((total, item) => total + String(item.dataUrl || '').length, 0);
+      if (totalBase64Length > maxBatchPngBase64Length) return { ok: false, error: '批量 PNG 导出数据总量过大，已拒绝。' };
       const window = BrowserWindow.fromWebContents(event.sender);
       const result = window
         ? await dialog.showOpenDialog(window, { title: '选择地图 PNG 导出文件夹', properties: ['openDirectory', 'createDirectory'] })
@@ -126,6 +136,7 @@ export function registerExportIpc(): void {
         try {
           const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(item.dataUrl || ''));
           if (!match) throw new Error('PNG 数据无效');
+          if (match[1].length > maxPngBase64Length) throw new Error('PNG 数据超过 50 MB');
           const baseName = safeFileName(String(item.title || '').trim() || '未命名地图');
           let fileName = `${baseName}.png`;
           let suffix = 2;

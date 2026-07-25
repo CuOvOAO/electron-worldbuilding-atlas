@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron';
 import { addRecentVault, createVault, ensureVaultReady, readRecentVaults } from '../vault/vaultService';
+import { assertDirectoryPathAuthorized, assertVaultPathAuthorized, authorizeDirectoryPath } from '../security/capabilities';
 
 export function registerVaultIpc(): void {
   ipcMain.handle('vault:listRecent', () => readRecentVaults());
@@ -16,11 +17,13 @@ export function registerVaultIpc(): void {
       return null;
     }
 
+    authorizeDirectoryPath(result.filePaths[0]);
     return result.filePaths[0];
   });
 
   ipcMain.handle('vault:create', (_event, input: { parentDir: string; name: string; description: string }) => {
     try {
+      assertDirectoryPathAuthorized(input.parentDir);
       return { ok: true, vault: createVault(input.parentDir, input.name, input.description) };
     } catch (error) {
       console.error('创建存档失败', error);
@@ -52,6 +55,7 @@ export function registerVaultIpc(): void {
 
   ipcMain.handle('vault:openPath', (_event, vaultPath: string) => {
     try {
+      assertVaultPathAuthorized(vaultPath);
       const vault = ensureVaultReady(vaultPath);
       addRecentVault(vault);
       return { ok: true, vault };

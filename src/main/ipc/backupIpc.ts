@@ -2,12 +2,17 @@ import { app, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'ele
 import { join } from 'node:path';
 import { createFullVaultBackup, defaultBackupFileName, normalizeBackupTargetPath } from '../backup/backupService';
 import { inspectRestoreArchive, restoreAsNewVault } from '../backup/restoreService';
-import { readProject } from '../vault/vaultService';
+import { ensureAuthorizedVaultReady } from '../vault/vaultService';
+import {
+  assertArchivePathAuthorized,
+  assertDirectoryPathAuthorized,
+  authorizeArchivePath
+} from '../security/capabilities';
 
 export function registerBackupIpc(): void {
   ipcMain.handle('backup:createFullVaultBackup', async (event, vaultPath: string) => {
     try {
-      const project = readProject(vaultPath);
+      const project = ensureAuthorizedVaultReady(vaultPath);
       const owner = BrowserWindow.fromWebContents(event.sender);
       const defaultPath = join(vaultPath, 'backups', defaultBackupFileName(project.name));
       const saveOptions = {
@@ -50,6 +55,7 @@ export function registerBackupIpc(): void {
       }
 
       const inspected = await inspectRestoreArchive(result.filePaths[0]);
+      authorizeArchivePath(inspected.archivePath);
       return {
         ok: true,
         cancelled: false,
@@ -64,6 +70,8 @@ export function registerBackupIpc(): void {
 
   ipcMain.handle('backup:restoreAsNewVault', async (_event, input: { archivePath: string; targetParentDir: string; newVaultName: string }) => {
     try {
+      assertArchivePathAuthorized(input.archivePath);
+      assertDirectoryPathAuthorized(input.targetParentDir);
       const restored = await restoreAsNewVault(input, app.getVersion());
       return {
         ok: true,

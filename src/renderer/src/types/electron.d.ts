@@ -18,6 +18,11 @@ declare global {
     manuscriptAtlas: {
       version: string;
       platform: string;
+      lifecycle: {
+        setUnsavedChanges: (value: boolean) => void;
+        confirmClose: () => void;
+        onCloseRequested: (callback: () => void) => () => void;
+      };
       vault: {
         listRecent: () => Promise<VaultProject[]>;
         chooseDirectory: () => Promise<string | null>;

@@ -7,6 +7,7 @@ import { registerDataIpc } from './ipc/dataIpc';
 import { registerExportIpc } from './ipc/exportIpc';
 import { registerIntegrityIpc } from './ipc/integrityIpc';
 import { registerVaultIpc } from './ipc/vaultIpc';
+import { protectWindowFromUnsavedClose, registerLifecycleIpc } from './lifecycle/closeGuard';
 
 const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
@@ -22,6 +23,14 @@ const createWindow = (): void => {
       nodeIntegration: false
     }
   });
+  protectWindowFromUnsavedClose(mainWindow);
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowedUrl = process.env.ELECTRON_RENDERER_URL;
+    if ((allowedUrl && url.startsWith(allowedUrl)) || (!allowedUrl && url.startsWith('file:'))) return;
+    event.preventDefault();
+  });
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -32,22 +41,39 @@ const createWindow = (): void => {
 
 registerAssetProtocolScheme();
 
-app.whenReady().then(() => {
-  registerAssetProtocolHandler();
-  registerVaultIpc();
-  registerDataIpc();
-  registerExportIpc();
-  registerAssetIpc();
-  registerBackupIpc();
-  registerIntegrityIpc();
-  createWindow();
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const existingWindow = BrowserWindow.getAllWindows()[0];
+    if (!existingWindow) {
+      if (app.isReady()) createWindow();
+      return;
     }
+    if (existingWindow.isMinimized()) existingWindow.restore();
+    existingWindow.focus();
   });
-});
+
+  app.whenReady().then(() => {
+    registerAssetProtocolHandler();
+    registerVaultIpc();
+    registerDataIpc();
+    registerExportIpc();
+    registerAssetIpc();
+    registerBackupIpc();
+    registerIntegrityIpc();
+    registerLifecycleIpc();
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  });
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

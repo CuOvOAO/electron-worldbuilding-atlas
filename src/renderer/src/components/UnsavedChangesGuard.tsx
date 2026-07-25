@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 interface UnsavedChangesContextValue {
   hasUnsavedChanges: boolean;
@@ -12,17 +12,34 @@ const UnsavedChangesContext = createContext<UnsavedChangesContextValue | null>(n
 export function UnsavedChangesProvider({ children }: { children: ReactNode }): JSX.Element {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [pendingReason, setPendingReason] = useState<'navigation' | 'close'>('navigation');
   const [dangerPrompt, setDangerPrompt] = useState<{
     message: string;
     confirmLabel: string;
     resolve: (value: boolean) => void;
   } | null>(null);
 
+  useEffect(() => {
+    window.manuscriptAtlas.lifecycle.setUnsavedChanges(hasUnsavedChanges);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    const removeListener = window.manuscriptAtlas.lifecycle.onCloseRequested(() => {
+      setPendingReason('close');
+      setPendingAction(() => () => window.manuscriptAtlas.lifecycle.confirmClose());
+    });
+    return () => {
+      window.manuscriptAtlas.lifecycle.setUnsavedChanges(false);
+      removeListener();
+    };
+  }, []);
+
   function confirmNavigation(action: () => void): void {
     if (!hasUnsavedChanges) {
       action();
       return;
     }
+    setPendingReason('navigation');
     setPendingAction(() => action);
   }
 
@@ -51,10 +68,14 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }): J
         <div className="fixed inset-0 z-50 grid place-items-center bg-cowhide/35">
           <div className="w-[420px] rounded-md border border-umber/40 bg-vellum p-5 shadow-folio">
             <h2 className="font-serif text-xl font-semibold text-ink">未保存的编辑内容</h2>
-            <p className="mt-3 leading-7 text-sepia">你有尚未保存的编辑内容，离开后这些修改将丢失。是否继续离开？</p>
+            <p className="mt-3 leading-7 text-sepia">
+              {pendingReason === 'close'
+                ? '你有尚未保存的编辑内容，关闭应用后这些修改将丢失。是否继续关闭？'
+                : '你有尚未保存的编辑内容，离开后这些修改将丢失。是否继续离开？'}
+            </p>
             <div className="mt-5 flex justify-end gap-3">
-              <button className="btn-ghost" onClick={() => setPendingAction(null)}>留在当前页</button>
-              <button className="btn-primary" onClick={continueNavigation}>继续离开</button>
+              <button className="btn-ghost" onClick={() => setPendingAction(null)}>{pendingReason === 'close' ? '继续编辑' : '留在当前页'}</button>
+              <button className="btn-primary" onClick={continueNavigation}>{pendingReason === 'close' ? '关闭应用' : '继续离开'}</button>
             </div>
           </div>
         </div>

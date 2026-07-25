@@ -1,9 +1,11 @@
 import { ipcMain } from 'electron';
 import { checkVaultIntegrity } from '../integrity/integrityService';
+import { assertVaultPathAuthorized } from '../security/capabilities';
 
 export function registerIntegrityIpc(): void {
   ipcMain.handle('integrity:checkCurrentVault', async (_event, vaultPath: string) => {
     try {
+      assertVaultPathAuthorized(vaultPath);
       return {
         ok: true,
         report: await checkVaultIntegrity(vaultPath)
