@@ -33,3 +33,10 @@ npm.cmd run package
 ## 发布提醒
 
 正式发布前仍需配置应用图标、author、Windows 签名证书、发布通道与升级策略。
+
+## 技术栈
+
+Electron、React 19、TypeScript、SQLite、electron-vite、Tailwind CSS 和 Vitest。
+
+安装 Node.js 22.12+（建议使用当前 LTS）后，在项目根目录运行上述开发命令。
+

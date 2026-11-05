@@ -11,3 +11,21 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 .codex-tmp-docx/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+# Local tooling and caches
+.agents/
+.codex/
+.venv/
+__pycache__/
+*.pyc
+*.tmp
+*.tsbuildinfo
+
